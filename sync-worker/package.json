@@ -1,0 +1,17 @@
+{
+  "name": "pelias-postgis-sync-worker",
+  "version": "1.0.0",
+  "description": "Event-driven Pelias sync worker for PostGIS using Fetch-Latest-State pattern",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.1",
+    "@elastic/elasticsearch": "^8.16.2",
+    "dotenv": "^16.4.7"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

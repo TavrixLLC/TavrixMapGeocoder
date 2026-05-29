@@ -1,0 +1,75 @@
+{
+  "esclient": {
+    "hosts": [
+      {
+        "host": "elasticsearch",
+        "port": 9200
+      }
+    ],
+    "requestTimeout": 120000
+  },
+  "schema": {
+    "indexName": "pelias"
+  },
+  "api": {
+    "textAnalyzer": "libpostal",
+    "services": {
+      "libpostal": {
+        "url": "http://libpostal:4400"
+      }
+    }
+  },
+  "imports": {
+    "adminLookup": {
+      "enabled": false
+    }
+  },
+  "postgis_sync": {
+    "batch_size": 500,
+    "max_bulk_bytes": 10485760,
+    "max_retries": 5,
+    "safety_net_poll_seconds": 30,
+    "claim_timeout_minutes": 5,
+    "enrichment": {
+      "strategy": "config",
+      "default_parent": {
+        "country": ["Bahrain"],
+        "country_a": ["BHR"]
+      }
+    },
+    "sources": [
+      {
+        "table": "planet_osm_point",
+        "id_field": "osm_id",
+        "name_field": "name",
+        "geometry_field": "way",
+        "layer": "venue",
+        "source_label": "osm",
+        "weight": 1,
+        "address_fields": {
+          "name": "addr:housename",
+          "number": "addr:housenumber"
+        },
+        "parent_fields": {},
+        "addendum_fields": ["amenity", "shop", "tourism", "historic", "highway", "office"],
+        "soft_delete": null
+      },
+      {
+        "table": "planet_osm_polygon",
+        "id_field": "osm_id",
+        "name_field": "name",
+        "geometry_field": "way",
+        "layer": "venue",
+        "source_label": "osm",
+        "weight": 1,
+        "address_fields": {
+          "name": "addr:housename",
+          "number": "addr:housenumber"
+        },
+        "parent_fields": {},
+        "addendum_fields": ["building", "amenity", "shop", "tourism", "landuse"],
+        "soft_delete": null
+      }
+    ]
+  }
+}
