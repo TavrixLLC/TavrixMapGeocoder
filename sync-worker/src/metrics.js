@@ -1,115 +1,105 @@
 'use strict';
 
+const client = require('prom-client');
+
 class Metrics {
   constructor() {
-    this.startedAt = Date.now();
-    this.counters = {
-      events_processed_total: 0,
-      events_failed_total: 0,
-      events_sent_to_dlq_total: 0,
-      batches_processed_total: 0
-    };
-    this.gauges = {
-      outbox_depth_pending: 0,
-      outbox_depth_processing: 0,
-      outbox_depth_failed: 0,
-      dlq_depth: 0,
-      oldest_pending_event_age_seconds: 0,
-      event_processing_lag_seconds: 0,
-      batch_duration_milliseconds: 0,
-      bulk_index_duration_milliseconds: 0,
-      fetch_state_duration_milliseconds: 0,
-      transform_duration_milliseconds: 0,
-      worker_events_per_second: 0,
-      retry_rate: 0,
-      queue_growth_rate: 0,
-      pg_listener_connected: 0,
-      pg_pool_connected: 0,
-      es_connected: 0
-    };
-    this.perSource = {};
-    this._lastProcessedCount = 0;
-    this._lastRateCheck = Date.now();
+    this.registry = new client.Registry();
+    client.collectDefaultMetrics({ register: this.registry });
+
+    this.lastSuccess = new client.Gauge({
+      name: 'sync_last_success_timestamp',
+      help: 'Last successful sync timestamp by source as Unix seconds',
+      labelNames: ['source']
+    });
+    this.duration = new client.Histogram({
+      name: 'sync_duration_seconds',
+      help: 'Sync duration by source',
+      labelNames: ['source', 'mode'],
+      buckets: [1, 5, 15, 30, 60, 120, 300, 900, 1800, 3600]
+    });
+    this.rowsRead = new client.Counter({
+      name: 'sync_rows_read_total',
+      help: 'Rows read from PostGIS',
+      labelNames: ['source']
+    });
+    this.docsIndexed = new client.Counter({
+      name: 'sync_docs_indexed_total',
+      help: 'Documents indexed into Elasticsearch',
+      labelNames: ['source']
+    });
+    this.docsDeleted = new client.Counter({
+      name: 'sync_docs_deleted_total',
+      help: 'Documents deleted from Elasticsearch',
+      labelNames: ['source']
+    });
+    this.docsFailed = new client.Counter({
+      name: 'sync_docs_failed_total',
+      help: 'Documents that failed transform or indexing',
+      labelNames: ['source']
+    });
+    this.esBulkDuration = new client.Histogram({
+      name: 'es_bulk_duration_ms',
+      help: 'Elasticsearch bulk request duration in milliseconds',
+      labelNames: ['source'],
+      buckets: [10, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000]
+    });
+    this.postgisQueryDuration = new client.Histogram({
+      name: 'postgis_query_duration_ms',
+      help: 'PostGIS query duration in milliseconds',
+      labelNames: ['source'],
+      buckets: [50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000, 120000, 600000]
+    });
+    this.currentIndexAlias = new client.Gauge({
+      name: 'current_index_alias',
+      help: 'Current Pelias alias target marker',
+      labelNames: ['alias', 'index']
+    });
+    this.scheduleStatus = new client.Gauge({
+      name: 'schedule_status',
+      help: 'Schedule status by source. 1 active, 0 inactive',
+      labelNames: ['source']
+    });
+    this.lastError = new client.Gauge({
+      name: 'sync_last_error_timestamp',
+      help: 'Last error timestamp by source as Unix seconds',
+      labelNames: ['source', 'message']
+    });
+    this.health = new client.Gauge({
+      name: 'dependency_available',
+      help: 'Dependency health. 1 available, 0 unavailable',
+      labelNames: ['dependency']
+    });
+
+    this.registry.registerMetric(this.lastSuccess);
+    this.registry.registerMetric(this.duration);
+    this.registry.registerMetric(this.rowsRead);
+    this.registry.registerMetric(this.docsIndexed);
+    this.registry.registerMetric(this.docsDeleted);
+    this.registry.registerMetric(this.docsFailed);
+    this.registry.registerMetric(this.esBulkDuration);
+    this.registry.registerMetric(this.postgisQueryDuration);
+    this.registry.registerMetric(this.currentIndexAlias);
+    this.registry.registerMetric(this.scheduleStatus);
+    this.registry.registerMetric(this.lastError);
+    this.registry.registerMetric(this.health);
   }
 
-  inc(name, amount = 1) {
-    if (this.counters[name] != null) {
-      this.counters[name] += amount;
-    }
+  markLastSuccess(source) {
+    this.lastSuccess.labels(source).set(Math.floor(Date.now() / 1000));
   }
 
-  set(name, value) {
-    if (this.gauges[name] != null) {
-      this.gauges[name] = value;
-    }
+  markLastError(source, error) {
+    const message = String(error && error.message ? error.message : error).slice(0, 160);
+    this.lastError.labels(source, message).set(Math.floor(Date.now() / 1000));
   }
 
-  incSource(source, name, amount = 1) {
-    if (!this.perSource[source]) {
-      this.perSource[source] = { processed: 0, failed: 0, lag_seconds: 0 };
-    }
-    if (this.perSource[source][name] != null) {
-      this.perSource[source][name] += amount;
-    }
+  async render() {
+    return this.registry.metrics();
   }
 
-  setSource(source, name, value) {
-    if (!this.perSource[source]) {
-      this.perSource[source] = { processed: 0, failed: 0, lag_seconds: 0 };
-    }
-    this.perSource[source][name] = value;
-  }
-
-  updateRates() {
-    const now = Date.now();
-    const elapsed = (now - this._lastRateCheck) / 1000;
-    if (elapsed > 0) {
-      const processed = this.counters.events_processed_total - this._lastProcessedCount;
-      this.gauges.worker_events_per_second = Math.round((processed / elapsed) * 100) / 100;
-      this._lastProcessedCount = this.counters.events_processed_total;
-      this._lastRateCheck = now;
-    }
-  }
-
-  toPrometheus() {
-    const lines = [];
-    const uptimeSeconds = Math.floor((Date.now() - this.startedAt) / 1000);
-
-    // Counters
-    for (const [name, value] of Object.entries(this.counters)) {
-      lines.push(`# HELP ${name} Counter`);
-      lines.push(`# TYPE ${name} counter`);
-      lines.push(`${name} ${value}`);
-    }
-
-    // Gauges
-    for (const [name, value] of Object.entries(this.gauges)) {
-      lines.push(`# HELP ${name} Gauge`);
-      lines.push(`# TYPE ${name} gauge`);
-      lines.push(`${name} ${value}`);
-    }
-
-    lines.push(`# HELP uptime_seconds Worker uptime`);
-    lines.push(`# TYPE uptime_seconds gauge`);
-    lines.push(`uptime_seconds ${uptimeSeconds}`);
-
-    // Per-source
-    for (const [source, data] of Object.entries(this.perSource)) {
-      for (const [key, val] of Object.entries(data)) {
-        lines.push(`per_source_${key}{source="${source}"} ${val}`);
-      }
-    }
-
-    return lines.join('\n') + '\n';
-  }
-
-  toJSON() {
-    return {
-      uptime_seconds: Math.floor((Date.now() - this.startedAt) / 1000),
-      counters: { ...this.counters },
-      gauges: { ...this.gauges },
-      per_source: { ...this.perSource }
-    };
+  contentType() {
+    return this.registry.contentType;
   }
 }
 

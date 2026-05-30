@@ -1,15 +1,27 @@
 {
-  "name": "pelias-postgis-sync-worker",
+  "name": "pelias-postgis-readonly-sync-worker",
   "version": "1.0.0",
-  "description": "Event-driven Pelias sync worker for PostGIS using Fetch-Latest-State pattern",
+  "description": "Read-only PostGIS to Pelias Elasticsearch sync worker",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js schedule",
+    "schedule": "node src/index.js schedule",
+    "sync:all": "node src/index.js sync:all",
+    "sync:source": "node src/index.js sync:source",
+    "reindex:all": "node src/index.js reindex:all",
+    "reindex:source": "node src/index.js reindex:source",
+    "health": "node src/index.js health",
+    "test": "node --test"
   },
   "dependencies": {
-    "pg": "^8.13.1",
     "@elastic/elasticsearch": "^8.16.2",
-    "dotenv": "^16.4.7"
+    "ajv": "^8.17.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-cron": "^4.2.1",
+    "pg": "^8.13.1",
+    "pg-query-stream": "^4.8.1",
+    "prom-client": "^15.1.3"
   },
   "engines": {
     "node": ">=20.0.0"

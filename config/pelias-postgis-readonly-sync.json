@@ -1,0 +1,131 @@
+{
+  "worker": {
+    "mode": "scheduled",
+    "dry_run": false,
+    "health_port": 9090,
+    "default_country": "",
+    "default_country_a": ""
+  },
+  "postgis": {
+    "statement_timeout_ms": 600000,
+    "idle_in_transaction_session_timeout_ms": 900000,
+    "fetch_size": 1000
+  },
+  "elasticsearch": {
+    "url": "http://elasticsearch:9200",
+    "read_alias": "pelias",
+    "write_alias": "pelias_write",
+    "index_prefix": "pelias",
+    "initial_index": "pelias_v1",
+    "request_timeout_ms": 120000,
+    "max_retries": 5,
+    "retry_base_delay_ms": 500,
+    "max_bulk_docs": 1000,
+    "max_bulk_bytes": 10485760
+  },
+  "state": {
+    "path": "/app/state/sync-state.json",
+    "store_seen_ids": true
+  },
+  "sources": [
+    {
+      "name": "osm_pois",
+      "enabled": true,
+      "layer": "venue",
+      "source_label": "osm_postgis",
+      "id_field": "osm_id",
+      "geometry_field": "way",
+      "sql": "SELECT osm_id, name, tags -> 'name:en' AS name_en, tags -> 'name:ar' AS name_ar, amenity, shop, tourism, historic, office, brand, operator, tags -> 'phone' AS phone, tags -> 'contact:phone' AS contact_phone, tags -> 'website' AS website, tags -> 'contact:website' AS contact_website, tags -> 'opening_hours' AS opening_hours, \"addr:housenumber\" AS housenumber, \"addr:housename\" AS housename, way FROM planet_osm_point WHERE name IS NOT NULL AND (amenity IS NOT NULL OR shop IS NOT NULL OR tourism IS NOT NULL OR historic IS NOT NULL OR office IS NOT NULL)",
+      "name_fields": ["name", "name_en", "name_ar"],
+      "category_fields": ["amenity", "shop", "tourism", "historic", "office"],
+      "address_fields": {
+        "number": "housenumber",
+        "name": "housename"
+      },
+      "addendum_fields": ["amenity", "shop", "tourism", "historic", "office", "brand", "operator", "phone", "contact_phone", "website", "contact_website", "opening_hours"],
+      "schedule": "0 */6 * * *",
+      "batch_size": 1000,
+      "delete_strategy": "source_diff"
+    },
+    {
+      "name": "streets",
+      "enabled": true,
+      "layer": "street",
+      "source_label": "osm_postgis",
+      "id_field": "osm_id",
+      "geometry_field": "way",
+      "sql": "SELECT osm_id, name, tags -> 'name:en' AS name_en, tags -> 'name:ar' AS name_ar, highway, ref, way FROM planet_osm_line WHERE name IS NOT NULL AND highway IS NOT NULL",
+      "name_fields": ["name", "name_en", "name_ar"],
+      "category_fields": ["highway"],
+      "addendum_fields": ["highway", "ref"],
+      "schedule": "0 2 * * *",
+      "batch_size": 1000,
+      "delete_strategy": "source_diff"
+    },
+    {
+      "name": "places",
+      "enabled": true,
+      "layer": "locality",
+      "source_label": "osm_postgis",
+      "id_field": "osm_id",
+      "geometry_field": "way",
+      "sql": "SELECT osm_id, name, tags -> 'name:en' AS name_en, tags -> 'name:ar' AS name_ar, place, population, capital, way FROM planet_osm_point WHERE place IS NOT NULL AND name IS NOT NULL",
+      "name_fields": ["name", "name_en", "name_ar"],
+      "category_fields": ["place"],
+      "popularity_field": "population",
+      "addendum_fields": ["place", "population", "capital"],
+      "schedule": "30 2 * * *",
+      "batch_size": 1000,
+      "delete_strategy": "source_diff"
+    },
+    {
+      "name": "admin_boundaries",
+      "enabled": true,
+      "layer": "locality",
+      "source_label": "osm_postgis",
+      "id_field": "osm_id",
+      "geometry_field": "way",
+      "sql": "SELECT osm_id, name, tags -> 'name:en' AS name_en, tags -> 'name:ar' AS name_ar, boundary, admin_level, way FROM planet_osm_polygon WHERE boundary = 'administrative' AND admin_level IN ('2', '4', '6', '8', '10') AND name IS NOT NULL",
+      "name_fields": ["name", "name_en", "name_ar"],
+      "category_fields": ["boundary", "admin_level"],
+      "layer_map": {
+        "field": "admin_level",
+        "values": {
+          "2": "country",
+          "4": "region",
+          "6": "county",
+          "8": "locality",
+          "10": "neighbourhood"
+        }
+      },
+      "hierarchy_fields": {
+        "country": "country",
+        "region": "region",
+        "locality": "locality",
+        "neighbourhood": "neighbourhood"
+      },
+      "addendum_fields": ["boundary", "admin_level"],
+      "schedule": "0 3 * * 0",
+      "batch_size": 500,
+      "delete_strategy": "source_diff"
+    },
+    {
+      "name": "addresses",
+      "enabled": false,
+      "layer": "address",
+      "source_label": "osm_postgis",
+      "id_field": "osm_id",
+      "geometry_field": "way",
+      "sql": "SELECT osm_id, COALESCE(tags -> 'addr:housename', tags -> 'addr:housenumber') AS name, tags -> 'addr:housenumber' AS housenumber, tags -> 'addr:street' AS street, tags -> 'addr:postcode' AS postalcode, way FROM planet_osm_point WHERE tags ? 'addr:housenumber'",
+      "name_fields": ["name"],
+      "address_fields": {
+        "number": "housenumber",
+        "street": "street",
+        "zip": "postalcode"
+      },
+      "schedule": "15 */6 * * *",
+      "batch_size": 1000,
+      "delete_strategy": "source_diff"
+    }
+  ]
+}

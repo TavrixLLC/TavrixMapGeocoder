@@ -1,0 +1,7 @@
+{
+  "valid_sources": ["osm_postgis"],
+  "default_sources": ["osm_postgis"],
+  "priorities": {
+    "osm_postgis": 1.0
+  }
+}

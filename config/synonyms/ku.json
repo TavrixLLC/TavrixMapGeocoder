@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "description": "Kurdish (Sorani/ckb) synonym stubs — populate with real data when available",
+  "place_type_synonyms": {
+    "شەقام": ["street", "شارع"],
+    "نەخۆشخانە": ["hospital", "مستشفى"],
+    "چێشتخانە": ["restaurant", "مطعم"],
+    "دەرمانخانە": ["pharmacy", "صيدلية"],
+    "زانکۆ": ["university", "جامعة"],
+    "مزگەوت": ["mosque", "مسجد"]
+  },
+  "spelling_variants": {}
+}

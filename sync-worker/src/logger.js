@@ -1,34 +1,69 @@
 'use strict';
 
-const LOG_LEVELS = { error: 0, warn: 1, info: 2, debug: 3 };
-const currentLevel = LOG_LEVELS[process.env.LOG_LEVEL || 'info'] ?? LOG_LEVELS.info;
+const SECRET_KEYS = new Set(['password', 'pass', 'pwd', 'token', 'secret']);
 
 class Logger {
-  constructor(workerId) {
-    this.workerId = workerId || process.env.WORKER_ID || 'worker';
+  constructor(scope = 'postgis-readonly-sync') {
+    this.scope = scope;
   }
 
-  _write(level, msg, meta = {}) {
-    if (LOG_LEVELS[level] > currentLevel) return;
+  info(message, meta) {
+    this.write('info', message, meta);
+  }
+
+  warn(message, meta) {
+    this.write('warn', message, meta);
+  }
+
+  error(message, meta) {
+    this.write('error', message, meta);
+  }
+
+  debug(message, meta) {
+    if (process.env.LOG_LEVEL === 'debug') {
+      this.write('debug', message, meta);
+    }
+  }
+
+  write(level, message, meta = undefined) {
     const entry = {
       ts: new Date().toISOString(),
       level,
-      worker: this.workerId,
-      msg,
-      ...meta
+      scope: this.scope,
+      message
     };
-    const stream = level === 'error' ? process.stderr : process.stdout;
-    stream.write(JSON.stringify(entry) + '\n');
+
+    if (meta && Object.keys(meta).length > 0) {
+      entry.meta = scrub(meta);
+    }
+
+    const line = JSON.stringify(entry);
+    if (level === 'error') {
+      console.error(line);
+    } else {
+      console.log(line);
+    }
+  }
+}
+
+function scrub(value) {
+  if (Array.isArray(value)) {
+    return value.map(scrub);
   }
 
-  info(msg, meta) { this._write('info', msg, meta); }
-  warn(msg, meta) { this._write('warn', msg, meta); }
-  error(msg, meta) { this._write('error', msg, meta); }
-  debug(msg, meta) { this._write('debug', msg, meta); }
-
-  batch(batchId, msg, meta = {}) {
-    this._write('info', msg, { batchId, ...meta });
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [key, val] of Object.entries(value)) {
+      if (SECRET_KEYS.has(key.toLowerCase()) || key.toLowerCase().includes('password')) {
+        out[key] = '[redacted]';
+      } else {
+        out[key] = scrub(val);
+      }
+    }
+    return out;
   }
+
+  return value;
 }
 
 module.exports = Logger;

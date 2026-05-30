@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "description": "English synonyms for geocoding",
+  "place_type_synonyms": {
+    "street": ["st", "str"],
+    "avenue": ["ave", "av"],
+    "road": ["rd"],
+    "boulevard": ["blvd"],
+    "drive": ["dr"],
+    "lane": ["ln"],
+    "place": ["pl"],
+    "court": ["ct"],
+    "highway": ["hwy"],
+    "restaurant": ["food", "dining"],
+    "cafe": ["coffee", "coffeeshop"],
+    "hospital": ["medical", "healthcare"],
+    "pharmacy": ["drugstore", "medicine"],
+    "school": ["education"],
+    "university": ["college"],
+    "hotel": ["lodging", "motel"],
+    "gas station": ["fuel", "petrol"],
+    "bank": ["atm", "finance"],
+    "mosque": ["masjid"],
+    "church": ["chapel"],
+    "market": ["bazaar", "souk"],
+    "park": ["garden"]
+  }
+}

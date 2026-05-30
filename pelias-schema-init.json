@@ -9,7 +9,7 @@
     "requestTimeout": 120000
   },
   "schema": {
-    "indexName": "pelias"
+    "indexName": "pelias_v1"
   },
   "api": {
     "textAnalyzer": "libpostal",
@@ -17,11 +17,6 @@
       "libpostal": {
         "url": "http://libpostal:4400"
       }
-    }
-  },
-  "imports": {
-    "adminLookup": {
-      "enabled": false
     }
   }
 }

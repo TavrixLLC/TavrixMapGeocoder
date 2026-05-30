@@ -1,0 +1,142 @@
+[
+  {
+    "id": "restaurant",
+    "names": { "en": "Restaurant", "ar": "مطعم", "ku": "چێشتخانە" },
+    "aliases": ["food", "dining", "اكل", "أكل", "مطاعم"],
+    "osm_tags": { "amenity": "restaurant" },
+    "parent": "food"
+  },
+  {
+    "id": "cafe",
+    "names": { "en": "Cafe", "ar": "مقهى", "ku": "قاوەخانە" },
+    "aliases": ["coffee", "كوفي", "كافيه", "coffeeshop"],
+    "osm_tags": { "amenity": "cafe" },
+    "parent": "food"
+  },
+  {
+    "id": "fast_food",
+    "names": { "en": "Fast Food", "ar": "وجبات سريعة" },
+    "aliases": ["fastfood", "fast food"],
+    "osm_tags": { "amenity": "fast_food" },
+    "parent": "food"
+  },
+  {
+    "id": "pharmacy",
+    "names": { "en": "Pharmacy", "ar": "صيدلية", "ku": "دەرمانخانە" },
+    "aliases": ["drugstore", "صيدليه", "medicine"],
+    "osm_tags": { "amenity": "pharmacy" },
+    "parent": "health"
+  },
+  {
+    "id": "hospital",
+    "names": { "en": "Hospital", "ar": "مستشفى", "ku": "نەخۆشخانە" },
+    "aliases": ["healthcare", "medical", "مشفى"],
+    "osm_tags": { "amenity": "hospital" },
+    "parent": "health"
+  },
+  {
+    "id": "clinic",
+    "names": { "en": "Clinic", "ar": "عيادة" },
+    "aliases": ["doctor", "طبيب", "medical_center"],
+    "osm_tags": { "amenity": "clinic" },
+    "parent": "health"
+  },
+  {
+    "id": "school",
+    "names": { "en": "School", "ar": "مدرسة" },
+    "aliases": ["education", "تعليم"],
+    "osm_tags": { "amenity": "school" },
+    "parent": "education"
+  },
+  {
+    "id": "university",
+    "names": { "en": "University", "ar": "جامعة", "ku": "زانکۆ" },
+    "aliases": ["college", "كلية"],
+    "osm_tags": { "amenity": "university" },
+    "parent": "education"
+  },
+  {
+    "id": "fuel",
+    "names": { "en": "Gas Station", "ar": "محطة وقود" },
+    "aliases": ["gas", "petrol", "بنزين", "gas_station", "fuel_station"],
+    "osm_tags": { "amenity": "fuel" },
+    "parent": "transport"
+  },
+  {
+    "id": "bank",
+    "names": { "en": "Bank", "ar": "بنك" },
+    "aliases": ["atm", "finance", "مصرف"],
+    "osm_tags": { "amenity": "bank" },
+    "parent": "finance"
+  },
+  {
+    "id": "atm",
+    "names": { "en": "ATM", "ar": "صراف آلي" },
+    "aliases": ["cash_machine"],
+    "osm_tags": { "amenity": "atm" },
+    "parent": "finance"
+  },
+  {
+    "id": "hotel",
+    "names": { "en": "Hotel", "ar": "فندق" },
+    "aliases": ["lodging", "tourism", "accommodation", "نزل"],
+    "osm_tags": { "tourism": "hotel" },
+    "parent": "tourism"
+  },
+  {
+    "id": "supermarket",
+    "names": { "en": "Supermarket", "ar": "سوبرماركت" },
+    "aliases": ["grocery", "بقالة", "market"],
+    "osm_tags": { "shop": "supermarket" },
+    "parent": "shopping"
+  },
+  {
+    "id": "mall",
+    "names": { "en": "Mall", "ar": "مول" },
+    "aliases": ["shopping_center", "مجمع تجاري", "shopping_mall"],
+    "osm_tags": { "shop": "mall" },
+    "parent": "shopping"
+  },
+  {
+    "id": "mosque",
+    "names": { "en": "Mosque", "ar": "مسجد", "ku": "مزگەوت" },
+    "aliases": ["masjid", "جامع", "prayer"],
+    "osm_tags": { "amenity": "place_of_worship", "religion": "muslim" },
+    "parent": "worship"
+  },
+  {
+    "id": "church",
+    "names": { "en": "Church", "ar": "كنيسة" },
+    "aliases": ["chapel"],
+    "osm_tags": { "amenity": "place_of_worship", "religion": "christian" },
+    "parent": "worship"
+  },
+  {
+    "id": "parking",
+    "names": { "en": "Parking", "ar": "موقف سيارات" },
+    "aliases": ["car_park", "parking_lot"],
+    "osm_tags": { "amenity": "parking" },
+    "parent": "transport"
+  },
+  {
+    "id": "park",
+    "names": { "en": "Park", "ar": "حديقة" },
+    "aliases": ["garden", "منتزه"],
+    "osm_tags": { "leisure": "park" },
+    "parent": "leisure"
+  },
+  {
+    "id": "bakery",
+    "names": { "en": "Bakery", "ar": "مخبز" },
+    "aliases": ["bread", "خبز", "فرن"],
+    "osm_tags": { "shop": "bakery" },
+    "parent": "food"
+  },
+  {
+    "id": "police",
+    "names": { "en": "Police Station", "ar": "مركز شرطة" },
+    "aliases": ["police_station", "شرطة"],
+    "osm_tags": { "amenity": "police" },
+    "parent": "government"
+  }
+]

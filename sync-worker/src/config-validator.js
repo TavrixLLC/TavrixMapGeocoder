@@ -1,101 +1,144 @@
 'use strict';
 
 const fs = require('fs');
-const path = require('path');
+const Ajv = require('ajv');
 
-const VALID_LAYERS = [
-  'venue', 'address', 'street', 'locality', 'county',
-  'region', 'country', 'neighbourhood', 'borough',
-  'localadmin', 'macrocounty', 'macroregion', 'continent'
-];
-
-function loadConfig() {
-  const configPaths = [
-    path.resolve('/app/pelias.json'),
-    path.resolve(process.cwd(), 'pelias.json'),
-    path.resolve(__dirname, '../../pelias.json')
-  ];
-
-  let configPath = null;
-  for (const p of configPaths) {
-    if (fs.existsSync(p)) {
-      configPath = p;
-      break;
-    }
-  }
-
-  if (!configPath) {
-    console.error('FATAL: pelias.json not found in any of:', configPaths);
-    process.exit(1);
-  }
-
-  try {
-    const raw = fs.readFileSync(configPath, 'utf8');
-    return JSON.parse(raw);
-  } catch (err) {
-    console.error(`FATAL: Failed to parse ${configPath}: ${err.message}`);
-    process.exit(1);
-  }
-}
-
-function validateConfig(config) {
-  const errors = [];
-  const sync = config.postgis_sync;
-
-  if (!sync) {
-    errors.push('Missing postgis_sync section');
-    return failOnErrors(errors);
-  }
-
-  if (!Array.isArray(sync.sources) || sync.sources.length === 0) {
-    errors.push('postgis_sync.sources must be a non-empty array');
-    return failOnErrors(errors);
-  }
-
-  for (let i = 0; i < sync.sources.length; i++) {
-    const src = sync.sources[i];
-    const prefix = `sources[${i}] (${src.table || 'unnamed'})`;
-
-    if (!src.table) errors.push(`${prefix}: missing table`);
-    if (!src.id_field) errors.push(`${prefix}: missing id_field`);
-    if (!src.name_field) errors.push(`${prefix}: missing name_field`);
-    if (!src.geometry_field) errors.push(`${prefix}: missing geometry_field`);
-    if (!src.layer) {
-      errors.push(`${prefix}: missing layer`);
-    } else if (!VALID_LAYERS.includes(src.layer)) {
-      errors.push(`${prefix}: invalid layer '${src.layer}', must be one of: ${VALID_LAYERS.join(', ')}`);
-    }
-    if (!src.source_label) errors.push(`${prefix}: missing source_label`);
-
-    if (src.weight != null && (src.weight < 1 || src.weight > 100)) {
-      errors.push(`${prefix}: weight must be between 1 and 100`);
-    }
-
-    if (src.soft_delete) {
-      if (!src.soft_delete.field) {
-        errors.push(`${prefix}: soft_delete.field is required`);
+const schema = {
+  type: 'object',
+  required: ['worker', 'postgis', 'elasticsearch', 'state', 'sources'],
+  properties: {
+    worker: {
+      type: 'object',
+      properties: {
+        mode: { enum: ['scheduled', 'one-shot'] },
+        dry_run: { type: 'boolean' },
+        health_port: { type: 'integer', minimum: 1 },
+        default_country: { type: 'string' },
+        default_country_a: { type: 'string' }
+      },
+      additionalProperties: true
+    },
+    postgis: {
+      type: 'object',
+      properties: {
+        statement_timeout_ms: { type: 'integer', minimum: 1000 },
+        idle_in_transaction_session_timeout_ms: { type: 'integer', minimum: 1000 },
+        fetch_size: { type: 'integer', minimum: 1 }
+      },
+      additionalProperties: false
+    },
+    elasticsearch: {
+      type: 'object',
+      required: ['url', 'read_alias', 'write_alias', 'index_prefix', 'initial_index'],
+      properties: {
+        url: { type: 'string' },
+        read_alias: { type: 'string' },
+        write_alias: { type: 'string' },
+        index_prefix: { type: 'string' },
+        initial_index: { type: 'string' },
+        request_timeout_ms: { type: 'integer', minimum: 1000 },
+        max_retries: { type: 'integer', minimum: 0 },
+        retry_base_delay_ms: { type: 'integer', minimum: 1 },
+        max_bulk_docs: { type: 'integer', minimum: 1 },
+        max_bulk_bytes: { type: 'integer', minimum: 1024 }
+      },
+      additionalProperties: false
+    },
+    state: {
+      type: 'object',
+      required: ['path'],
+      properties: {
+        path: { type: 'string' },
+        store_seen_ids: { type: 'boolean' }
+      },
+      additionalProperties: false
+    },
+    sources: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'object',
+        required: ['name', 'layer', 'source_label', 'id_field', 'geometry_field', 'sql', 'name_fields'],
+        properties: {
+          name: { type: 'string', pattern: '^[a-zA-Z0-9_-]+$' },
+          enabled: { type: 'boolean' },
+          layer: { type: 'string' },
+          source_label: { type: 'string' },
+          id_field: { type: 'string' },
+          geometry_field: { type: 'string' },
+          sql: { type: 'string' },
+          name_fields: { type: 'array', items: { type: 'string' }, minItems: 1 },
+          category_fields: { type: 'array', items: { type: 'string' } },
+          address_fields: { type: 'object', additionalProperties: { type: 'string' } },
+          hierarchy_fields: { type: 'object', additionalProperties: { type: 'string' } },
+          popularity_field: { type: 'string' },
+          addendum_fields: { type: 'array', items: { type: 'string' } },
+          update_timestamp_field: { type: 'string' },
+          schedule: { type: 'string' },
+          batch_size: { type: 'integer', minimum: 1 },
+          delete_strategy: { enum: ['none', 'source_diff'] },
+          layer_map: {
+            type: 'object',
+            required: ['field', 'values'],
+            properties: {
+              field: { type: 'string' },
+              values: { type: 'object', additionalProperties: { type: 'string' } }
+            },
+            additionalProperties: false
+          }
+        },
+        additionalProperties: false
       }
-      if (!['not_null', 'true'].includes(src.soft_delete.delete_when)) {
-        errors.push(`${prefix}: soft_delete.delete_when must be 'not_null' or 'true'`);
-      }
     }
-  }
+  },
+  additionalProperties: false
+};
 
-  // Validate esclient
-  if (!config.esclient || !config.esclient.hosts || config.esclient.hosts.length === 0) {
-    errors.push('esclient.hosts must be a non-empty array');
-  }
-
-  failOnErrors(errors);
+function loadConfig(path = process.env.SYNC_CONFIG_PATH || '/app/config/pelias-postgis-readonly-sync.json') {
+  const raw = fs.readFileSync(path, 'utf8');
+  const config = JSON.parse(raw);
+  validateConfig(config);
   return config;
 }
 
-function failOnErrors(errors) {
-  if (errors.length > 0) {
-    console.error('Configuration validation failed:');
-    errors.forEach(e => console.error(`  ✗ ${e}`));
-    process.exit(1);
+function validateConfig(config) {
+  const ajv = new Ajv({ allErrors: true });
+  const validate = ajv.compile(schema);
+
+  if (!validate(config)) {
+    const details = validate.errors.map(err => `${err.instancePath || '/'} ${err.message}`).join('; ');
+    throw new Error(`Invalid sync config: ${details}`);
+  }
+
+  const seen = new Set();
+  for (const source of config.sources) {
+    if (seen.has(source.name)) {
+      throw new Error(`Duplicate source name: ${source.name}`);
+    }
+    seen.add(source.name);
+
+    validateReadOnlySql(source);
   }
 }
 
-module.exports = { loadConfig, validateConfig };
+function validateReadOnlySql(source) {
+  const sql = source.sql.trim();
+  if (!/^select\b/i.test(sql)) {
+    throw new Error(`Source ${source.name} must use a SELECT query`);
+  }
+
+  if (sql.includes(';')) {
+    throw new Error(`Source ${source.name} SQL must be a single SELECT without semicolons`);
+  }
+
+  const blocked = /\b(insert|update|delete|merge|copy|create|alter|drop|truncate|grant|revoke|vacuum|analyze|listen|notify|call)\b/i;
+  if (blocked.test(sql)) {
+    throw new Error(`Source ${source.name} SQL contains a non-read-only keyword`);
+  }
+}
+
+module.exports = {
+  loadConfig,
+  validateConfig,
+  schema
+};

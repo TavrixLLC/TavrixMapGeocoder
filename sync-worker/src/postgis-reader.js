@@ -1,0 +1,99 @@
+'use strict';
+
+const { Pool } = require('pg');
+const QueryStream = require('pg-query-stream');
+
+class PostgisReader {
+  constructor(config, logger) {
+    this.config = config;
+    this.log = logger;
+    this.pool = new Pool({
+      host: requiredEnv('POSTGIS_HOST'),
+      port: Number(process.env.POSTGIS_PORT || 5432),
+      database: requiredEnv('POSTGIS_DB'),
+      user: requiredEnv('POSTGIS_USER'),
+      password: requiredEnv('POSTGIS_PASSWORD'),
+      max: Number(process.env.POSTGIS_POOL_SIZE || 4),
+      application_name: 'pelias_postgis_readonly_sync',
+      options: [
+        '-c default_transaction_read_only=on',
+        `-c statement_timeout=${config.postgis.statement_timeout_ms}`,
+        `-c idle_in_transaction_session_timeout=${config.postgis.idle_in_transaction_session_timeout_ms}`
+      ].join(' ')
+    });
+    this.closed = false;
+  }
+
+  async ping() {
+    await this.pool.query('SELECT 1');
+  }
+
+  async close() {
+    if (this.closed) return;
+    this.closed = true;
+    await this.pool.end();
+  }
+
+  async *streamSource(source) {
+    const client = await this.pool.connect();
+    const startedAt = Date.now();
+    const batchSize = source.batch_size || this.config.postgis.fetch_size || 1000;
+
+    try {
+      await client.query('BEGIN READ ONLY');
+      const sql = this.buildSql(source);
+      const stream = client.query(new QueryStream(sql, [], { batchSize }));
+
+      for await (const row of stream) {
+        yield row;
+      }
+
+      await client.query('COMMIT');
+      this.log.info('PostGIS source query finished', {
+        source: source.name,
+        duration_ms: Date.now() - startedAt
+      });
+    } catch (err) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_) {
+        // Ignore rollback failure so the original error is preserved.
+      }
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  buildSql(source) {
+    const geom = quoteIdentifier(source.geometry_field);
+
+    return `
+      SELECT
+        q.*,
+        ST_X(ST_Transform(ST_PointOnSurface(q.${geom}), 4326)) AS _lon,
+        ST_Y(ST_Transform(ST_PointOnSurface(q.${geom}), 4326)) AS _lat
+      FROM (
+        ${source.sql}
+      ) AS q
+      WHERE q.${geom} IS NOT NULL
+    `;
+  }
+}
+
+function quoteIdentifier(identifier) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(identifier)) {
+    throw new Error(`Invalid SQL identifier: ${identifier}`);
+  }
+  return `"${identifier}"`;
+}
+
+function requiredEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable ${name}`);
+  }
+  return value;
+}
+
+module.exports = PostgisReader;

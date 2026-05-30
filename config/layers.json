@@ -1,0 +1,4 @@
+{
+  "valid_layers": ["venue", "address", "street", "neighbourhood", "localadmin", "locality", "county", "region", "country"],
+  "default_layers": ["venue", "address", "street", "locality"]
+}

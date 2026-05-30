@@ -1,108 +1,161 @@
 'use strict';
 
 class Transform {
-  constructor(sourcesConfig, logger) {
+  constructor(config, logger) {
+    this.config = config;
     this.log = logger;
-    this._configMap = new Map();
-    for (const src of sourcesConfig) {
-      this._configMap.set(src.table, src);
-    }
   }
 
-  toDomainModel(fetchedItem) {
-    const { event, state, action } = fetchedItem;
-    const sourceConfig = this._configMap.get(event.table_name);
-
-    if (!sourceConfig) {
-      return { event, action: 'ERROR', error: `No config for table ${event.table_name}` };
+  toDomainDoc(source, row) {
+    const recordId = value(row, source.id_field);
+    if (recordId == null || recordId === '') {
+      throw new Error(`Source ${source.name} row has no id field ${source.id_field}`);
     }
 
-    const esId = `postgis:${event.table_name}:${event.record_id}`;
-
-    if (action === 'DELETE') {
-      return { event, esId, action: 'DELETE' };
+    const lat = Number(row._lat);
+    const lon = Number(row._lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      throw new Error(`Source ${source.name} row ${recordId} has invalid geometry`);
     }
 
-    if (action === 'ERROR') {
-      return fetchedItem;
+    const names = buildNames(row, source.name_fields);
+    if (!names.default) {
+      throw new Error(`Source ${source.name} row ${recordId} has no usable name`);
     }
 
-    // Build domain model from config-driven field mapping
-    const doc = {
-      esId,
-      action: 'UPSERT',
-      event,
-      fetchedAt: Math.floor(state._fetched_at || Date.now()),
-      source: sourceConfig.source_label || 'postgis',
-      layer: sourceConfig.layer || 'venue',
-      name: state[sourceConfig.name_field] || '',
-      lat: parseFloat(state._lat),
-      lon: parseFloat(state._lon),
-      address: {},
-      parent: {},
-      nameAliases: {},
-      category: [],
-      popularity: null,
-      addendum: null,
-      raw: state
+    const layer = resolveLayer(source, row);
+    const categories = collectValues(row, source.category_fields || []);
+    const address = mapFields(row, source.address_fields || {});
+    const parent = mapParentFields(row, source.hierarchy_fields || {});
+    const addendum = mapAddendum(row, source.addendum_fields || []);
+    const popularity = parsePopularity(value(row, source.popularity_field));
+
+    return {
+      id: `postgis:${source.name}:${recordId}`,
+      recordId: String(recordId),
+      sourceName: source.name,
+      source: source.source_label,
+      layer,
+      name: names.default,
+      names,
+      lat,
+      lon,
+      categories,
+      address,
+      parent,
+      addendum,
+      popularity,
+      // Routable point/entrances: not yet available from PostGIS queries
+      // TODO: Add entrance extraction SQL and nearest-road enrichment
+      routable_point: null,
+      routable_points: [],
+      entrances: [],
+      raw: row
     };
+  }
+}
 
-    // Address fields
-    if (sourceConfig.address_fields) {
-      for (const [peliasField, dbField] of Object.entries(sourceConfig.address_fields)) {
-        if (state[dbField] != null) {
-          doc.address[peliasField] = String(state[dbField]);
-        }
-      }
+function buildNames(row, fields) {
+  const names = {};
+
+  fields.forEach((field, index) => {
+    const raw = value(row, field);
+    if (raw == null) return;
+
+    const clean = String(raw).trim();
+    if (!clean) return;
+
+    if (index === 0 && !names.default) {
+      names.default = clean;
     }
 
-    // I18n name fields
-    if (sourceConfig.name_fields_i18n) {
-      for (const [lang, dbField] of Object.entries(sourceConfig.name_fields_i18n)) {
-        if (state[dbField] != null) {
-          doc.nameAliases[lang] = state[dbField];
-        }
-      }
+    const lang = languageFromField(field);
+    if (lang && !names[lang]) {
+      names[lang] = clean;
     }
+  });
 
-    // Parent fields (hierarchy)
-    if (sourceConfig.parent_fields) {
-      for (const [level, dbField] of Object.entries(sourceConfig.parent_fields)) {
-        if (state[dbField] != null) {
-          doc.parent[level] = [state[dbField]];
-        }
-      }
+  // Also try Kurdish fields: name_ku, name:ku, name_ckb
+  for (const kuField of ['name_ku', 'name:ku', 'name_ckb', 'name:ckb']) {
+    const kuValue = value(row, kuField);
+    if (kuValue && String(kuValue).trim()) {
+      if (!names.ku) names.ku = String(kuValue).trim();
     }
-
-    // Popularity
-    if (sourceConfig.popularity_field && state[sourceConfig.popularity_field] != null) {
-      doc.popularity = parseInt(state[sourceConfig.popularity_field], 10);
-    }
-
-    // Category
-    if (sourceConfig.category_field && state[sourceConfig.category_field]) {
-      doc.category = [state[sourceConfig.category_field]];
-    }
-
-    // Addendum fields
-    if (sourceConfig.addendum_fields && sourceConfig.addendum_fields.length > 0) {
-      const addendum = {};
-      for (const field of sourceConfig.addendum_fields) {
-        if (state[field] != null) {
-          addendum[field] = state[field];
-        }
-      }
-      if (Object.keys(addendum).length > 0) {
-        doc.addendum = addendum;
-      }
-    }
-
-    return doc;
   }
 
-  transformBatch(fetchedItems) {
-    return fetchedItems.map(item => this.toDomainModel(item));
+  return names;
+}
+
+function languageFromField(field) {
+  const match = field.match(/(?:^|_)([a-z]{2,3})$/i);
+  if (!match) return null;
+  return match[1].toLowerCase();
+}
+
+function resolveLayer(source, row) {
+  if (!source.layer_map) return source.layer;
+
+  const key = value(row, source.layer_map.field);
+  const mapped = source.layer_map.values[String(key)];
+  return mapped || source.layer;
+}
+
+function collectValues(row, fields) {
+  const out = [];
+  for (const field of fields) {
+    const raw = value(row, field);
+    if (raw == null) continue;
+
+    const clean = String(raw).trim();
+    if (clean) out.push(clean);
   }
+  return out;
+}
+
+function mapFields(row, mapping) {
+  const out = {};
+  for (const [targetField, sourceField] of Object.entries(mapping)) {
+    const raw = value(row, sourceField);
+    if (raw == null) continue;
+
+    const clean = String(raw).trim();
+    if (clean) out[targetField] = clean;
+  }
+  return out;
+}
+
+function mapParentFields(row, mapping) {
+  const out = {};
+  for (const [targetField, sourceField] of Object.entries(mapping)) {
+    const raw = value(row, sourceField);
+    if (raw == null) continue;
+
+    const clean = String(raw).trim();
+    if (clean) out[targetField] = [clean];
+  }
+  return out;
+}
+
+function mapAddendum(row, fields) {
+  const out = {};
+  for (const field of fields) {
+    const raw = value(row, field);
+    if (raw != null && String(raw).trim() !== '') {
+      out[field] = raw;
+    }
+  }
+  return out;
+}
+
+function parsePopularity(raw) {
+  if (raw == null || raw === '') return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function value(row, field) {
+  if (!field) return undefined;
+  return row[field];
 }
 
 module.exports = Transform;

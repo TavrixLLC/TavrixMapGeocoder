@@ -1,18 +1,18 @@
 services:
   elasticsearch:
     image: pelias/elasticsearch:8.12.2-beta
-    container_name: pelias_elasticsearch
+    container_name: pelias-readonly-elasticsearch
     restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      cluster.name: pelias-readonly
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+      xpack.security.enabled: "false"
     ports:
       - "9200:9200"
       - "9300:9300"
-    environment:
-      - discovery.type=single-node
-      - cluster.name=pelias
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - xpack.security.enabled=false
     volumes:
-      - "${DATA_DIR:-./data}/elasticsearch:/usr/share/elasticsearch/data"
+      - pelias_elasticsearch_data:/usr/share/elasticsearch/data
     ulimits:
       memlock:
         soft: -1
@@ -21,59 +21,131 @@ services:
         soft: 65536
         hard: 65536
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -vq '\"status\":\"red\"'"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health | grep -vq '\"status\":\"red\"'"]
       interval: 10s
       timeout: 5s
       retries: 30
       start_period: 60s
 
-  schema:
+  pelias-schema:
     image: pelias/schema:master
-    container_name: pelias_schema
+    container_name: pelias-readonly-schema
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - >
+        node -e "const http=require('http');const req=http.request({host:'elasticsearch',port:9200,path:'/pelias_v1',method:'HEAD'},res=>process.exit(res.statusCode===200?0:2));req.on('error',()=>process.exit(2));req.end();"
+        || ./bin/create_index
+    environment:
+      PELIAS_CONFIG: /code/pelias.json
     volumes:
-      - "./pelias.json:/code/pelias.json"
+      - ./pelias-schema-init.json:/code/pelias.json:ro
     depends_on:
       elasticsearch:
         condition: service_healthy
 
   libpostal:
-    image: pelias/libpostal-service
-    container_name: pelias_libpostal
+    image: pelias/libpostal-service:latest
+    container_name: pelias-readonly-libpostal
     restart: unless-stopped
     ports:
       - "4400:4400"
 
-  api:
+  pelias-api:
     image: pelias/api:master
-    container_name: pelias_api
+    container_name: pelias-readonly-api
     restart: unless-stopped
-    ports:
-      - "4000:4000"
     environment:
-      - PORT=4000
+      PELIAS_CONFIG: /code/pelias.json
+      PORT: 4000
     volumes:
-      - "./pelias.json:/code/pelias.json"
+      - ./pelias.json:/code/pelias.json:ro
     depends_on:
       elasticsearch:
         condition: service_healthy
       libpostal:
         condition: service_started
+      postgis-readonly-sync-worker:
+        condition: service_started
 
-  sync-worker:
+  geocoder-api:
     build:
-      context: ./sync-worker
+      context: ./geocoder-api
       dockerfile: Dockerfile
-    container_name: pelias_sync_worker
+    container_name: tavrixmap-geocoder-api
     restart: unless-stopped
-    ports:
-      - "${HEALTH_PORT:-9090}:9090"
-      - "${ADMIN_PORT:-9091}:9091"
     env_file:
       - .env
+    environment:
+      PORT: 4000
+      PELIAS_API_URL: http://pelias-api:4000
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+      PELIAS_INDEX_ALIAS: ${PELIAS_INDEX_ALIAS:-pelias}
+      MAX_BATCH_SIZE: ${MAX_BATCH_SIZE:-100}
+      WORKER_STATE_PATH: /app/state/sync-state.json
+      WORKER_STALE_THRESHOLD_SECONDS: ${WORKER_STALE_THRESHOLD_SECONDS:-86400}
+    ports:
+      - "${PELIAS_API_PORT:-4000}:4000"
     volumes:
-      - "./pelias.json:/app/pelias.json:ro"
+      - ./config:/app/config:ro
+      - ./state:/app/state:ro
     depends_on:
       elasticsearch:
         condition: service_healthy
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      pelias-api:
+        condition: service_started
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    container_name: pelias-readonly-swagger-ui
+    restart: unless-stopped
+    environment:
+      SWAGGER_JSON: /docs/openapi.yaml
+      DOC_EXPANSION: list
+      DEFAULT_MODELS_EXPAND_DEPTH: 1
+    ports:
+      - "${SWAGGER_PORT:-8088}:8080"
+    volumes:
+      - ./docs/openapi.yaml:/docs/openapi.yaml:ro
+    depends_on:
+      geocoder-api:
+        condition: service_started
+      postgis-readonly-sync-worker:
+        condition: service_started
+
+  postgis-readonly-sync-worker:
+    build:
+      context: ./sync-worker
+      dockerfile: Dockerfile
+    container_name: pelias-postgis-readonly-sync-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+      SYNC_CONFIG_PATH: /app/config/pelias-postgis-readonly-sync.json
+      SYNC_STATE_PATH: /app/state/sync-state.json
+      HEALTH_PORT: 9090
+      WORKER_INTERNAL_TOKEN: ${WORKER_INTERNAL_TOKEN}
+    ports:
+      - "${WORKER_HEALTH_PORT:-9090}:9090"
+    volumes:
+      - ./config:/app/config:ro
+      - ./state:/app/state
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      pelias-schema:
+        condition: service_completed_successfully
+    networks:
+      - default
+      - postgis_external
+
+networks:
+  postgis_external:
+    external: true
+    name: ${POSTGIS_DOCKER_NETWORK:-map-data-pipeline_map-data}
+
+volumes:
+  pelias_elasticsearch_data:

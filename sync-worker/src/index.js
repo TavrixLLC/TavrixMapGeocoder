@@ -2,300 +2,289 @@
 
 require('dotenv').config();
 
-const { Pool } = require('pg');
 const { Client: EsClient } = require('@elastic/elasticsearch');
-const { loadConfig, validateConfig } = require('./config-validator');
+const { loadConfig } = require('./config-validator');
 const Logger = require('./logger');
 const Metrics = require('./metrics');
-const Backpressure = require('./backpressure');
-const PgListener = require('./pg-listener');
-const EventReader = require('./event-reader');
-const StateFetcher = require('./state-fetcher');
+const PostgisReader = require('./postgis-reader');
 const Transform = require('./transform');
 const Enrichment = require('./enrichment');
 const EsWriter = require('./es-writer');
-const EsIndexManager = require('./es-index-manager');
-const ErrorHandler = require('./error-handler');
-const DlqManager = require('./dlq-manager');
-const ReplayManager = require('./replay-manager');
+const IndexManager = require('./index-manager');
+const StateStore = require('./state-store');
 const HealthServer = require('./health-server');
-const AdminServer = require('./admin-server');
+const Scheduler = require('./scheduler');
 
-// --- Globals ---
-const log = new Logger(process.env.WORKER_ID);
-const metrics = new Metrics();
-const backpressure = new Backpressure();
-let processing = false;
-let shutdownRequested = false;
-
-// --- Main ---
 async function main() {
-  log.info('Starting Pelias PostGIS Sync Worker');
+  const command = process.argv[2] || 'schedule';
+  const arg = process.argv[3];
+  const log = new Logger();
+  const config = loadConfig(process.env.SYNC_CONFIG_PATH);
+  config.elasticsearch.url = process.env.ELASTICSEARCH_URL || config.elasticsearch.url;
 
-  // 1. Load and validate config
-  const config = loadConfig();
-  validateConfig(config);
-  log.info('Configuration validated successfully');
-
-  // 2. Connect to PostGIS
-  const pgConnStr = `postgresql://${process.env.POSTGIS_USER}:${process.env.POSTGIS_PASSWORD}@${process.env.POSTGIS_HOST}:${process.env.POSTGIS_PORT || 5432}/${process.env.POSTGIS_DB}`;
-  const pgPool = new Pool({ connectionString: pgConnStr, max: 5 });
-
-  try {
-    await pgPool.query('SELECT 1');
-    log.info('PostGIS connection established');
-    metrics.set('pg_pool_connected', 1);
-  } catch (err) {
-    log.error('Failed to connect to PostGIS', { error: err.message });
-    process.exit(1);
+  if (command === 'health') {
+    await healthCheck(config, log);
+    return;
   }
 
-  // 3. Connect to Elasticsearch
-  const esHost = config.esclient.hosts[0];
-  const esClient = new EsClient({
-    node: `http://${esHost.host}:${esHost.port}`,
-    requestTimeout: config.esclient.requestTimeout || 30000,
-    maxRetries: 3
-  });
+  const app = await createApp(config, log);
 
   try {
-    await esClient.ping();
-    log.info('Elasticsearch connection established');
-    metrics.set('es_connected', 1);
-  } catch (err) {
-    log.warn('Elasticsearch not ready yet — will retry during processing', { error: err.message });
-  }
+    if (command === 'schedule') {
+      await app.indexManager.ensureAliases();
+      app.healthServer.start();
+      const scheduler = new Scheduler(app.syncService, app.metrics, log);
+      scheduler.start(config.sources);
 
-  // 4. Initialize components
-  const sources = config.postgis_sync.sources;
-  const eventReader = new EventReader(pgPool, config, log);
-  const stateFetcher = new StateFetcher(pgPool, sources, log);
-  const transform = new Transform(sources, log);
-  const enrichment = new Enrichment(config, log);
-  const esWriter = new EsWriter(esClient, config, log);
-  const esIndexManager = new EsIndexManager(esClient, config, log);
-  const errorHandler = new ErrorHandler(pgPool, log);
-  const dlqManager = new DlqManager(pgPool, log);
-  const replayManager = new ReplayManager(pgPool, log);
-
-  // 5. Ensure ES aliases
-  await esIndexManager.ensureAliases();
-
-  // 6. Start PG LISTEN
-  const pgListener = new PgListener(pgConnStr, 'pelias_outbox_event', log);
-  pgListener.onNotification = () => {
-    if (!processing) {
-      processBatch();
-    }
-  };
-  await pgListener.connect();
-  metrics.set('pg_listener_connected', pgListener.isHealthy() ? 1 : 0);
-
-  // 7. Start health server
-  const healthServer = new HealthServer({
-    metrics, pgPool, pgListener, esClient, esIndexManager, logger: log
-  });
-  healthServer.start();
-
-  // 8. Start admin server
-  const adminServer = new AdminServer({
-    replayManager, dlqManager, esIndexManager, logger: log
-  });
-  adminServer.start();
-
-  // 9. Processing loop
-  async function processBatch() {
-    if (processing || shutdownRequested) return;
-    processing = true;
-
-    try {
-      // Check backpressure
-      if (backpressure.shouldPause()) {
-        const pauseMs = backpressure.getPauseMs();
-        log.warn('Backpressure active', { pauseMs });
-        await sleep(pauseMs);
-      }
-
-      const batchStart = Date.now();
-
-      // Step 1: Claim and collapse
-      const { collapsed, allEventIds } = await eventReader.claimAndCollapse(sources);
-
-      if (collapsed.length === 0) {
-        processing = false;
-        return;
-      }
-
-      // Step 2: Fetch current state from PostGIS
-      const fetchStart = Date.now();
-      const fetchedItems = await stateFetcher.fetchCurrentStates(collapsed);
-      metrics.set('fetch_state_duration_milliseconds', Date.now() - fetchStart);
-
-      // Step 3: Separate errors from valid items
-      const errors = fetchedItems.filter(i => i.action === 'ERROR');
-      const valid = fetchedItems.filter(i => i.action !== 'ERROR');
-
-      // Handle fetch errors
-      for (const errItem of errors) {
-        const errType = errorHandler.classifyError({ message: errItem.error });
-        if (errType === 'PERMANENT' || errItem.event.retry_count >= (config.postgis_sync.max_retries - 1)) {
-          await errorHandler.sendToDlq(errItem.event, errItem.error, errType);
-          metrics.inc('events_sent_to_dlq_total');
-        } else {
-          await eventReader.markFailed([errItem.event.id], errItem.error);
-          metrics.inc('events_failed_total');
-        }
-      }
-
-      if (valid.length === 0) {
-        processing = false;
-        return;
-      }
-
-      // Step 4: Transform
-      const transformStart = Date.now();
-      const domainDocs = transform.transformBatch(valid);
-      metrics.set('transform_duration_milliseconds', Date.now() - transformStart);
-
-      // Step 5: Enrich
-      const enrichedDocs = await enrichment.enrichBatch(domainDocs);
-
-      // Filter out transform errors
-      const docsToIndex = enrichedDocs.filter(d => d.action !== 'ERROR');
-      const transformErrors = enrichedDocs.filter(d => d.action === 'ERROR');
-
-      for (const errDoc of transformErrors) {
-        await errorHandler.sendToDlq(errDoc.event, errDoc.error, 'PERMANENT');
-        metrics.inc('events_sent_to_dlq_total');
-      }
-
-      // Step 6: Write to Elasticsearch
-      const bulkStart = Date.now();
-      const { successIds, failedItems } = await esWriter.writeAll(docsToIndex);
-      metrics.set('bulk_index_duration_milliseconds', Date.now() - bulkStart);
-
-      // Step 7: Update outbox status
-      if (successIds.length > 0) {
-        await eventReader.markProcessed(successIds);
-        metrics.inc('events_processed_total', successIds.length);
-        backpressure.recordSuccess();
-      }
-
-      // Step 8: Handle failures
-      if (failedItems.length > 0) {
-        const { retriedCount, dlqCount } = await errorHandler.handleBulkFailures(
-          failedItems, eventReader, config.postgis_sync.max_retries
-        );
-        metrics.inc('events_failed_total', retriedCount);
-        metrics.inc('events_sent_to_dlq_total', dlqCount);
-      }
-
-      // Update per-source metrics
-      for (const doc of docsToIndex) {
-        if (doc.event) {
-          metrics.incSource(doc.event.table_name, 'processed');
-        }
-      }
-
-      const batchDuration = Date.now() - batchStart;
-      metrics.set('batch_duration_milliseconds', batchDuration);
-      metrics.inc('batches_processed_total');
-
-      log.info('Batch processed', {
-        claimed: allEventIds.length,
-        collapsed: collapsed.length,
-        indexed: successIds.length,
-        failed: failedItems.length,
-        duration_ms: batchDuration
+      log.info('Read-only sync worker started in scheduled mode');
+      await waitForever(async signal => {
+        log.info('Shutdown requested', { signal });
+        scheduler.stop();
+        await app.shutdown();
       });
-
-      // If there were events, try again immediately (there might be more)
-      processing = false;
-      setImmediate(processBatch);
       return;
-
-    } catch (err) {
-      log.error('Batch processing error', { error: err.message, stack: err.stack });
-      backpressure.recordFailure();
-      metrics.inc('events_failed_total');
     }
 
-    processing = false;
+    await app.indexManager.ensureAliases();
+
+    if (command === 'sync:all') {
+      await app.syncService.syncAll({ mode: 'manual' });
+    } else if (command === 'sync:source') {
+      requiredArg(arg, 'source name');
+      await app.syncService.syncSource(arg, { mode: 'manual' });
+    } else if (command === 'reindex:all') {
+      await app.syncService.reindexAll();
+    } else if (command === 'reindex:source') {
+      requiredArg(arg, 'source name');
+      await app.syncService.syncSource(arg, { mode: 'source-reindex', forceDeleteDiff: true });
+    } else {
+      throw new Error(`Unknown command: ${command}`);
+    }
+  } finally {
+    await app.shutdown();
   }
-
-  // 10. Safety-net poll
-  const pollInterval = (config.postgis_sync.safety_net_poll_seconds || 30) * 1000;
-  const safetyNetTimer = setInterval(async () => {
-    if (shutdownRequested) return;
-
-    // Update metrics
-    try {
-      const depth = await eventReader.getOutboxDepth();
-      metrics.set('outbox_depth_pending', parseInt(depth.pending, 10));
-      metrics.set('outbox_depth_processing', parseInt(depth.processing, 10));
-      metrics.set('outbox_depth_failed', parseInt(depth.failed, 10));
-
-      const age = await eventReader.getOldestPendingAge();
-      metrics.set('oldest_pending_event_age_seconds', Math.round(age));
-
-      const dlqDepth = await dlqManager.getDepth();
-      metrics.set('dlq_depth', dlqDepth);
-
-      metrics.set('pg_listener_connected', pgListener.isHealthy() ? 1 : 0);
-      metrics.set('pg_pool_connected', 1);
-
-      try {
-        await esClient.ping();
-        metrics.set('es_connected', 1);
-      } catch (_) {
-        metrics.set('es_connected', 0);
-      }
-    } catch (err) {
-      log.error('Metrics update failed', { error: err.message });
-    }
-
-    // Process pending events (safety net)
-    if (!processing) {
-      processBatch();
-    }
-  }, pollInterval);
-
-  // 11. Graceful shutdown
-  async function shutdown(signal) {
-    log.info('Shutdown requested', { signal });
-    shutdownRequested = true;
-    clearInterval(safetyNetTimer);
-
-    // Wait for current batch to finish
-    let waitCount = 0;
-    while (processing && waitCount < 30) {
-      await sleep(1000);
-      waitCount++;
-    }
-
-    healthServer.stop();
-    adminServer.stop();
-    await pgListener.destroy();
-    await pgPool.end();
-    await esClient.close();
-
-    log.info('Shutdown complete');
-    process.exit(0);
-  }
-
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
-
-  // 12. Initial processing
-  log.info('Sync worker ready — processing initial events');
-  processBatch();
 }
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+async function createApp(config, log) {
+  const metrics = new Metrics();
+  const postgisReader = new PostgisReader(config, log);
+  const esClient = new EsClient({
+    node: config.elasticsearch.url,
+    requestTimeout: config.elasticsearch.request_timeout_ms
+  });
+  const indexManager = new IndexManager(esClient, config, metrics, log);
+  const stateStore = new StateStore(config, log);
+  const transform = new Transform(config, log);
+  const enrichment = new Enrichment(config);
+  const esWriter = new EsWriter(esClient, config, metrics, log);
+
+  await stateStore.load();
+
+  const syncService = {
+    syncAll: opts => syncAll({ config, postgisReader, transform, enrichment, esWriter, stateStore, metrics, log }, opts),
+    syncSource: (name, opts) => syncSource({ config, postgisReader, transform, enrichment, esWriter, stateStore, metrics, log }, name, opts),
+    reindexAll: () => reindexAll({ config, postgisReader, transform, enrichment, esWriter, stateStore, metrics, indexManager, log })
+  };
+
+  const healthServer = new HealthServer({
+    config,
+    metrics,
+    postgisReader,
+    esClient,
+    indexManager,
+    stateStore,
+    syncService,
+    logger: log
+  });
+  let closed = false;
+
+  return {
+    metrics,
+    postgisReader,
+    esClient,
+    indexManager,
+    stateStore,
+    syncService,
+    healthServer,
+    shutdown: async () => {
+      if (closed) return;
+      closed = true;
+      await healthServer.stop();
+      await postgisReader.close();
+      await esClient.close();
+    }
+  };
+}
+
+async function syncAll(deps, opts = {}) {
+  const totals = { indexed: 0, failed: 0, deleted: 0 };
+  for (const source of deps.config.sources.filter(src => src.enabled !== false)) {
+    const result = await syncSource(deps, source.name, opts);
+    totals.indexed += result.indexed || 0;
+    totals.failed += result.failed || 0;
+    totals.deleted += result.deleted || 0;
+  }
+  return totals;
+}
+
+async function reindexAll(deps) {
+  const targetIndex = await deps.indexManager.createNextVersionIndex();
+  const previousTarget = deps.esWriter.targetIndex;
+  deps.esWriter.setTargetIndex(targetIndex);
+
+  try {
+    const result = await syncAll(deps, {
+      mode: 'blue-green-reindex',
+      skipDeleteDiff: true
+    });
+    await deps.indexManager.switchAliases(targetIndex);
+    await deps.stateStore.setIndexVersion(targetIndex);
+    return result;
+  } finally {
+    deps.esWriter.setTargetIndex(previousTarget);
+  }
+}
+
+async function syncSource(deps, sourceName, opts = {}) {
+  const source = deps.config.sources.find(item => item.name === sourceName);
+  if (!source) throw new Error(`Unknown source: ${sourceName}`);
+  if (source.enabled === false) throw new Error(`Source is disabled: ${sourceName}`);
+
+  const started = Date.now();
+  const seenIds = new Set();
+  let indexed = 0;
+  let failed = 0;
+  let deleted = 0;
+  let read = 0;
+  let batch = [];
+  const mode = opts.mode || 'manual';
+  const dryRun = deps.config.worker.dry_run || process.env.DRY_RUN === '1';
+
+  deps.log.info('Starting source sync', { source: source.name, mode, dryRun });
+  await deps.stateStore.markStart(source.name);
+
+  try {
+    const queryStarted = Date.now();
+    for await (const row of deps.postgisReader.streamSource(source)) {
+      read += 1;
+      deps.metrics.rowsRead.labels(source.name).inc();
+
+      try {
+        const doc = deps.enrichment.enrich(deps.transform.toDomainDoc(source, row));
+        seenIds.add(doc.id);
+        batch.push(doc);
+      } catch (err) {
+        failed += 1;
+        deps.metrics.docsFailed.labels(source.name).inc();
+        deps.log.warn('Row skipped during transform', {
+          source: source.name,
+          error: err.message
+        });
+      }
+
+      const batchSize = source.batch_size || deps.config.elasticsearch.max_bulk_docs;
+      if (batch.length >= batchSize) {
+        const result = await flushBatch(deps, source.name, batch, dryRun);
+        indexed += result.indexed;
+        failed += result.failed;
+        batch = [];
+      }
+    }
+    deps.metrics.postgisQueryDuration.labels(source.name).observe(Date.now() - queryStarted);
+
+    if (batch.length > 0) {
+      const result = await flushBatch(deps, source.name, batch, dryRun);
+      indexed += result.indexed;
+      failed += result.failed;
+    }
+
+    const shouldDiffDeletes = !dryRun
+      && !opts.skipDeleteDiff
+      && (opts.forceDeleteDiff || source.delete_strategy === 'source_diff');
+    if (shouldDiffDeletes) {
+      const previousIds = deps.stateStore.previousIds(source.name);
+      const missing = [...previousIds].filter(id => !seenIds.has(id));
+      if (missing.length > 0) {
+        const result = await deps.esWriter.deleteIds(source.name, missing);
+        deleted = result.deleted;
+        failed += result.failed;
+        deps.metrics.docsDeleted.labels(source.name).inc(deleted);
+        deps.metrics.docsFailed.labels(source.name).inc(result.failed);
+      }
+    }
+
+    const durationSeconds = (Date.now() - started) / 1000;
+    deps.metrics.duration.labels(source.name, mode).observe(durationSeconds);
+    deps.metrics.markLastSuccess(source.name);
+    await deps.stateStore.markSuccess(source.name, { indexed, failed, deleted, durationSeconds }, seenIds);
+
+    deps.log.info('Source sync finished', {
+      source: source.name,
+      read,
+      indexed,
+      deleted,
+      failed,
+      duration_seconds: durationSeconds
+    });
+    return { indexed, failed, deleted, read, durationSeconds };
+  } catch (err) {
+    deps.metrics.markLastError(source.name, err);
+    await deps.stateStore.markFailure(source.name, err);
+    deps.log.error('Source sync failed', {
+      source: source.name,
+      error: err.message,
+      stack: err.stack
+    });
+    throw err;
+  }
+}
+
+async function flushBatch(deps, sourceName, batch, dryRun) {
+  if (dryRun) {
+    deps.log.info('Dry run batch transformed', { source: sourceName, count: batch.length });
+    return { indexed: batch.length, failed: 0 };
+  }
+
+  const result = await deps.esWriter.indexDocuments(sourceName, batch);
+  deps.metrics.docsIndexed.labels(sourceName).inc(result.indexed);
+  deps.metrics.docsFailed.labels(sourceName).inc(result.failed);
+  return result;
+}
+
+async function healthCheck(config, log) {
+  const app = await createApp(config, log);
+  try {
+    await app.postgisReader.ping();
+    await app.esClient.ping();
+    await app.indexManager.currentWriteTarget();
+    log.info('Health check passed');
+  } finally {
+    await app.shutdown();
+  }
+}
+
+function requiredArg(value, description) {
+  if (!value) {
+    throw new Error(`Missing required ${description}`);
+  }
+}
+
+function waitForever(onShutdown) {
+  return new Promise(resolve => {
+    let shuttingDown = false;
+    const handler = signal => {
+      if (shuttingDown) return;
+      shuttingDown = true;
+      Promise.resolve(onShutdown(signal))
+        .catch(err => console.error(err))
+        .finally(resolve);
+    };
+    process.on('SIGINT', () => handler('SIGINT'));
+    process.on('SIGTERM', () => handler('SIGTERM'));
+  });
 }
 
 main().catch(err => {
-  console.error('Fatal error:', err);
+  console.error(err);
   process.exit(1);
 });
