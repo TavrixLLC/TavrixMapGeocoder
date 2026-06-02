@@ -204,7 +204,33 @@ test('builder: includes routable_point with centroid_fallback', () => {
   assert.equal(doc.routable_point.lat, 33.3);
   assert.equal(doc.routable_point.lon, 44.3);
   assert.equal(doc.routable_point_type, 'centroid_fallback');
+  assert.equal(doc.routable_point_status, 'centroid_fallback');
   assert.equal(doc.routable_point_source, 'center_point');
+});
+
+test('builder: includes snapped routable_point_status fields', () => {
+  const builder = new PeliasDocumentBuilder();
+  const domainDoc = {
+    source: 'osm_postgis', layer: 'venue', recordId: '1',
+    name: 'Test', names: { default: 'Test', en: 'Test' },
+    lat: 33.3, lon: 44.3,
+    categories: ['restaurant'], address: {}, parent: {},
+    addendum: {}, popularity: null,
+    routable_point: { lat: 33.3001, lon: 44.3001 },
+    routable_point_type: 'snapped',
+    routable_point_status: 'snapped',
+    routable_point_source: 'postgis_nearest_road',
+    routable_point_distance_meters: 11.2,
+    routable_points: [],
+    entrances: []
+  };
+  const doc = builder.build(domainDoc);
+
+  assert.deepEqual(doc.routable_point, { lat: 33.3001, lon: 44.3001 });
+  assert.equal(doc.routable_point_type, 'snapped');
+  assert.equal(doc.routable_point_status, 'snapped');
+  assert.equal(doc.routable_point_source, 'postgis_nearest_road');
+  assert.equal(doc.routable_point_distance_meters, 11.2);
 });
 
 test('builder: includes updated_at timestamp', () => {

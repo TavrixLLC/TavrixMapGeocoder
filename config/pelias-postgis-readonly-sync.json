@@ -20,6 +20,18 @@
     "cache_enabled": true,
     "cache_grid_precision": 5
   },
+  "routable_point_enrichment": {
+    "enabled": false,
+    "mode": "postgis_nearest_road",
+    "roads_source": "streets",
+    "max_snap_distance_meters": 50,
+    "batch_size": 500,
+    "fallback_to_center": true,
+    "query_timeout_ms": 30000,
+    "source_srid_if_missing": 3857,
+    "layers": ["venue", "address"],
+    "snap_admin_polygons": false
+  },
   "postgis": {
     "statement_timeout_ms": 600000,
     "idle_in_transaction_session_timeout_ms": 900000,

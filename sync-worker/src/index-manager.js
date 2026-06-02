@@ -32,6 +32,16 @@ class IndexManager {
     return this.config.elasticsearch.initial_index;
   }
 
+  async nextVersionIndexName() {
+    const prefix = this.config.elasticsearch.index_prefix;
+    const indices = await this.versionIndices();
+    const versions = indices
+      .map(name => Number((name.match(new RegExp(`^${escapeRegExp(prefix)}_v(\\d+)$`)) || [])[1]))
+      .filter(Number.isFinite);
+    const nextVersion = versions.length === 0 ? 1 : Math.max(...versions) + 1;
+    return `${prefix}_v${nextVersion}`;
+  }
+
   async createNextVersionIndex() {
     const prefix = this.config.elasticsearch.index_prefix;
     const indices = await this.versionIndices();
@@ -237,14 +247,18 @@ class IndexManager {
             center_point: { type: 'geo_point' },
             routable_point: { type: 'geo_point' },
             routable_point_type: { type: 'keyword' },
+            routable_point_status: { type: 'keyword' },
             routable_point_source: { type: 'keyword' },
+            routable_point_reason: { type: 'keyword' },
+            routable_point_distance_meters: { type: 'float' },
             routable_points: {
               type: 'nested',
               properties: {
                 lat: { type: 'float' },
                 lon: { type: 'float' },
                 type: { type: 'keyword' },
-                source: { type: 'keyword' }
+                source: { type: 'keyword' },
+                distance_meters: { type: 'float' }
               }
             },
             entrances: {
@@ -313,14 +327,18 @@ function extendedMappingProperties() {
     names: { type: 'object', dynamic: true },
     routable_point: { type: 'geo_point' },
     routable_point_type: { type: 'keyword' },
+    routable_point_status: { type: 'keyword' },
     routable_point_source: { type: 'keyword' },
+    routable_point_reason: { type: 'keyword' },
+    routable_point_distance_meters: { type: 'float' },
     routable_points: {
       type: 'nested',
       properties: {
         lat: { type: 'float' },
         lon: { type: 'float' },
         type: { type: 'keyword' },
-        source: { type: 'keyword' }
+        source: { type: 'keyword' },
+        distance_meters: { type: 'float' }
       }
     },
     entrances: {

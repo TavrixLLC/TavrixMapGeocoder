@@ -14,6 +14,8 @@ test('extended mappings include production category/ranking fields', () => {
   assert.equal(mappings.category_terms.fields.keyword.type, 'keyword');
   assert.equal(mappings.intent_groups.type, 'keyword');
   assert.equal(mappings.importance.type, 'float');
+  assert.equal(mappings.routable_point_status.type, 'keyword');
+  assert.equal(mappings.routable_point_distance_meters.type, 'float');
 });
 
 test('createGenericIndex: uses shard and replica environment settings', async () => {

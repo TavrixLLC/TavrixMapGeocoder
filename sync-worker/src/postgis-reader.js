@@ -35,7 +35,7 @@ class PostgisReader {
     await this.pool.end();
   }
 
-  async *streamSource(source) {
+  async *streamSource(source, limit) {
     const client = await this.pool.connect();
     const startedAt = Date.now();
     const batchSize = source.batch_size || this.config.postgis.fetch_size || 1000;
@@ -43,7 +43,7 @@ class PostgisReader {
     try {
       await client.query('BEGIN READ ONLY');
       await this.assertReadOnlySession(client);
-      const sql = this.buildSql(source);
+      const sql = this.buildSql(source, limit);
       const stream = client.query(new QueryStream(sql, [], { batchSize }));
 
       for await (const row of stream) {
@@ -67,11 +67,15 @@ class PostgisReader {
     }
   }
 
-  async queryReadOnly(sql, params = []) {
+  async queryReadOnly(sql, params = [], options = {}) {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN READ ONLY');
       await this.assertReadOnlySession(client);
+      const statementTimeoutMs = Number(options.statementTimeoutMs || 0);
+      if (Number.isFinite(statementTimeoutMs) && statementTimeoutMs > 0) {
+        await client.query(`SET LOCAL statement_timeout = ${Math.floor(statementTimeoutMs)}`);
+      }
       const response = await client.query(sql, params);
       await client.query('COMMIT');
       return response.rows || [];
@@ -87,10 +91,10 @@ class PostgisReader {
     }
   }
 
-  buildSql(source) {
+  buildSql(source, limit) {
     const geom = quoteIdentifier(source.geometry_field);
 
-    return `
+    let sql = `
       SELECT
         q.*,
         ST_X(ST_Transform(ST_PointOnSurface(q.${geom}), 4326)) AS _lon,
@@ -100,6 +104,15 @@ class PostgisReader {
       ) AS q
       WHERE q.${geom} IS NOT NULL
     `;
+
+    if (limit !== undefined && limit !== null) {
+      const parsedLimit = Number(limit);
+      if (Number.isInteger(parsedLimit) && parsedLimit >= 0) {
+        sql += ` LIMIT ${parsedLimit}`;
+      }
+    }
+
+    return sql;
   }
 
   async assertReadOnlySession(client) {

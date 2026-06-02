@@ -41,11 +41,19 @@ class PeliasDocumentBuilder {
     if (domainDoc.routable_point && domainDoc.routable_point.lat != null) {
       doc.routable_point = domainDoc.routable_point;
       doc.routable_point_type = domainDoc.routable_point_type || 'indexed';
+      doc.routable_point_status = domainDoc.routable_point_status || doc.routable_point_type;
       doc.routable_point_source = domainDoc.routable_point_source || 'index';
     } else {
       doc.routable_point = centerPoint;
       doc.routable_point_type = 'centroid_fallback';
+      doc.routable_point_status = 'centroid_fallback';
       doc.routable_point_source = 'center_point';
+    }
+    if (Number.isFinite(domainDoc.routable_point_distance_meters)) {
+      doc.routable_point_distance_meters = domainDoc.routable_point_distance_meters;
+    }
+    if (domainDoc.routable_point_reason) {
+      doc.routable_point_reason = domainDoc.routable_point_reason;
     }
 
     // Entrances array (empty until entrance data is available)

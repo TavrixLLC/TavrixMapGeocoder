@@ -10,12 +10,14 @@ const PostgisReader = require('./postgis-reader');
 const Transform = require('./transform');
 const Enrichment = require('./enrichment');
 const AdminLookup = require('./admin-lookup');
+const RoutablePointLookup = require('./routable-point-lookup');
 const EsWriter = require('./es-writer');
 const IndexManager = require('./index-manager');
 const StateStore = require('./state-store');
 const { migrateJsonToSqlite } = require('./state-store');
 const HealthServer = require('./health-server');
 const Scheduler = require('./scheduler');
+const { runVerificationCheck } = require('./verify-enrichment');
 
 class SourceCountDropError extends Error {
   constructor(sourceName, previousCount, currentCount, maxDropRatio) {
@@ -116,6 +118,8 @@ async function main() {
       await app.syncService.syncSource(arg, { mode: 'manual' });
     } else if (command === 'reindex:all') {
       await app.syncService.reindexAll();
+    } else if (command === 'reindex:preflight') {
+      await reindexPreflight(app, config, log);
     } else if (command === 'rollback:aliases') {
       const result = await app.syncService.rollbackAliases(arg, { dryRun: commandOptions.dryRun });
       console.log(JSON.stringify(result, null, 2));
@@ -130,6 +134,47 @@ async function main() {
   }
 }
 
+async function reindexPreflight(app, config, log) {
+  const readAlias = config.elasticsearch.read_alias || 'pelias';
+  const writeAlias = config.elasticsearch.write_alias || 'pelias_write';
+
+  let readTargets = [];
+  let writeTargets = [];
+  try {
+    readTargets = await app.indexManager.aliasTargets(readAlias);
+  } catch (err) {
+    readTargets = [`Error resolving alias: ${err.message}`];
+  }
+  try {
+    writeTargets = await app.indexManager.aliasTargets(writeAlias);
+  } catch (err) {
+    writeTargets = [`Error resolving alias: ${err.message}`];
+  }
+
+  let nextTargetIndex = 'unknown';
+  try {
+    nextTargetIndex = await app.indexManager.nextVersionIndexName();
+  } catch (err) {
+    nextTargetIndex = 'Error: ' + err.message;
+  }
+
+  const p1 = app.routablePointLookup;
+  const p1Enabled = p1 ? p1.enabled : false;
+
+  console.log('\n================ REINDEX PREFLIGHT REPORT ================');
+  console.log(`Target Index (Next Version): ${nextTargetIndex}`);
+  console.log(`Current Aliases:`);
+  console.log(`  ${readAlias} -> ${JSON.stringify(readTargets)}`);
+  console.log(`  ${writeAlias} -> ${JSON.stringify(writeTargets)}`);
+  console.log(`P1 Enabled: ${p1Enabled}`);
+  console.log(`Road SRID: ${p1Enabled ? p1.roadsSrid : 'N/A'}`);
+  console.log(`GiST Index Exists: ${p1Enabled ? p1.gistIndexExists : 'N/A'}`);
+  console.log(`Batch Size: ${p1Enabled ? p1.options.batch_size : 'N/A'}`);
+  console.log(`Max Snap Distance Meters: ${p1Enabled ? p1.options.max_snap_distance_meters : 'N/A'}`);
+  console.log('==========================================================\n');
+}
+
+
 async function createApp(config, log) {
   const metrics = new Metrics();
   const postgisReader = new PostgisReader(config, log);
@@ -142,14 +187,16 @@ async function createApp(config, log) {
   const transform = new Transform(config, log);
   const enrichment = new Enrichment(config);
   const adminLookup = new AdminLookup(config, postgisReader, log);
+  const routablePointLookup = new RoutablePointLookup(config, postgisReader, log);
   const esWriter = new EsWriter(esClient, config, metrics, log);
 
   await stateStore.load();
+  await routablePointLookup.init();
 
   const syncService = {
-    syncAll: opts => syncAll({ config, postgisReader, transform, enrichment, adminLookup, esWriter, stateStore, metrics, log }, opts),
-    syncSource: (name, opts) => syncSource({ config, postgisReader, transform, enrichment, adminLookup, esWriter, stateStore, metrics, log }, name, opts),
-    reindexAll: () => reindexAll({ config, postgisReader, transform, enrichment, adminLookup, esWriter, stateStore, metrics, indexManager, esClient, log }),
+    syncAll: opts => syncAll({ config, postgisReader, transform, enrichment, adminLookup, routablePointLookup, esWriter, stateStore, metrics, log, indexManager, esClient }, opts),
+    syncSource: (name, opts) => syncSource({ config, postgisReader, transform, enrichment, adminLookup, routablePointLookup, esWriter, stateStore, metrics, log, indexManager, esClient }, name, opts),
+    reindexAll: () => reindexAll({ config, postgisReader, transform, enrichment, adminLookup, routablePointLookup, esWriter, stateStore, metrics, indexManager, esClient, log }),
     rollbackAliases: (targetIndex, opts) => rollbackAliases({ config, stateStore, metrics, indexManager, esClient, log }, targetIndex, opts)
   };
 
@@ -174,6 +221,7 @@ async function createApp(config, log) {
     stateStore,
     syncService,
     healthServer,
+    routablePointLookup,
     shutdown: async () => {
       if (closed) return;
       closed = true;
@@ -305,6 +353,75 @@ async function rollbackAliases(deps, targetIndexArg, opts = {}) {
 }
 
 async function syncSource(deps, sourceName, opts = {}) {
+  const isReindex = opts.mode === 'blue-green-reindex' || opts.mode === 'source-reindex';
+  const isP1Verify = !isReindex && (process.env.P1_ENABLED === 'true' || process.env.ROUTABLE_POINT_ENRICHMENT_ENABLED === 'true');
+
+  if (deps.routablePointLookup && deps.routablePointLookup.enabled) {
+    if (deps.routablePointLookup.gistIndexExists === false) {
+      throw new Error('missing_required_spatial_index');
+    }
+  }
+
+  if (isP1Verify) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const verifyIndex = process.env.P1_VERIFY_INDEX || `pelias_p1_verify_${timestamp}`;
+    const readAlias = deps.config.elasticsearch.read_alias;
+    const writeAlias = deps.config.elasticsearch.write_alias;
+
+    if (verifyIndex === readAlias || verifyIndex === writeAlias) {
+      if (process.env.P1_VERIFY_ALLOW_WRITE_ALIAS !== 'true') {
+        throw new Error(`Safety Error: Target index '${verifyIndex}' is a production alias. Writing to production alias is forbidden during P1 verification unless P1_VERIFY_ALLOW_WRITE_ALIAS=true is explicitly set.`);
+      }
+    }
+
+    const exists = await deps.indexManager.indexExists(verifyIndex);
+    if (exists) {
+      deps.log.info('Deleting pre-existing temporary verification index to ensure it starts empty', { index: verifyIndex });
+      try {
+        await deps.esClient.indices.delete({ index: verifyIndex });
+      } catch (err) {
+        deps.log.error('Failed to delete pre-existing temporary verification index', { index: verifyIndex, error: err.message });
+      }
+    }
+
+    deps.log.info('Creating temporary verification index', { index: verifyIndex });
+    await deps.indexManager.createGenericIndex(verifyIndex);
+    await deps.indexManager.ensureExtendedMappings(verifyIndex);
+
+    const originalTarget = deps.esWriter.targetIndex;
+    deps.esWriter.setTargetIndex(verifyIndex);
+
+    try {
+      const result = await syncSourceInner(deps, sourceName, {
+        ...opts,
+        skipDeleteDiff: true,
+        skipSourceDropCheck: true,
+        skipFailureToleranceCheck: true
+      });
+
+      await runVerificationCheck(deps.esClient, verifyIndex, deps.log);
+
+      return result;
+    } finally {
+      deps.esWriter.setTargetIndex(originalTarget);
+
+      if (process.env.P1_VERIFY_KEEP_INDEX !== 'true') {
+        deps.log.info('Deleting temporary verification index', { index: verifyIndex });
+        try {
+          await deps.esClient.indices.delete({ index: verifyIndex });
+        } catch (err) {
+          deps.log.error('Failed to delete temporary verification index', { index: verifyIndex, error: err.message });
+        }
+      } else {
+        deps.log.info('Keeping temporary verification index', { index: verifyIndex });
+      }
+    }
+  }
+
+  return syncSourceInner(deps, sourceName, opts);
+}
+
+async function syncSourceInner(deps, sourceName, opts = {}) {
   const source = deps.config.sources.find(item => item.name === sourceName);
   if (!source) throw new Error(`Unknown source: ${sourceName}`);
   if (source.enabled === false) throw new Error(`Source is disabled: ${sourceName}`);
@@ -324,14 +441,38 @@ async function syncSource(deps, sourceName, opts = {}) {
   deps.log.info('Starting source sync', { source: source.name, mode, dryRun });
   await deps.stateStore.markStart(source.name);
 
+  if (deps.routablePointLookup && deps.routablePointLookup.enabled && typeof deps.routablePointLookup.initStats === 'function') {
+    deps.routablePointLookup.initStats(source.name);
+  }
+
   try {
+    let limit = null;
+    if (process.env.SYNC_LIMIT_PER_SOURCE !== undefined && process.env.SYNC_LIMIT_PER_SOURCE !== '') {
+      const envVal = parseInt(process.env.SYNC_LIMIT_PER_SOURCE, 10);
+      if (Number.isInteger(envVal) && envVal >= 0) {
+        limit = envVal;
+      }
+    } else if (source.test_limit !== undefined && source.test_limit !== null) {
+      const srcVal = parseInt(source.test_limit, 10);
+      if (Number.isInteger(srcVal) && srcVal >= 0) {
+        limit = srcVal;
+      }
+    }
+
     const queryStarted = Date.now();
-    for await (const row of deps.postgisReader.streamSource(source)) {
+    for await (const row of deps.postgisReader.streamSource(source, limit)) {
       read += 1;
       deps.metrics.rowsRead.labels(source.name).inc();
 
       try {
         const doc = deps.transform.toDomainDoc(source, row);
+        if (seenIds.has(doc.id)) {
+          deps.log.warn('Duplicate document ID encountered in source stream', {
+            source: source.name,
+            doc_id: doc.id,
+            reason: 'The same ID was emitted more than once by the PostGIS query stream.'
+          });
+        }
         seenIds.add(doc.id);
         batch.push(doc);
       } catch (err) {
@@ -407,6 +548,43 @@ async function syncSource(deps, sourceName, opts = {}) {
       failed,
       duration_seconds: durationSeconds
     });
+
+    if (deps.routablePointLookup && deps.routablePointLookup.enabled && typeof deps.routablePointLookup.getStats === 'function') {
+      const stats = deps.routablePointLookup.getStats(source.name);
+      if (stats) {
+        const avgDistance = stats.distances.length > 0
+          ? stats.distances.reduce((sum, v) => sum + v, 0) / stats.distances.length
+          : 0;
+        const maxDistance = stats.distances.length > 0
+          ? Math.max(...stats.distances)
+          : 0;
+        const p95Ms = getP95(stats.query_durations);
+
+        const isP1Verify = process.env.P1_ENABLED === 'true' || process.env.ROUTABLE_POINT_ENRICHMENT_ENABLED === 'true';
+
+        const lookup = deps.routablePointLookup;
+        deps.log.info('P1 Routable Point Enrichment Stats', {
+          source: source.name,
+          read,
+          indexed,
+          road_srid: lookup.roadsSrid !== undefined ? lookup.roadsSrid : 4326,
+          gist_index_exists: lookup.gistIndexExists !== undefined ? lookup.gistIndexExists : true,
+          road_count: lookup.roadsCount !== undefined ? lookup.roadsCount : 0,
+          batch_size: lookup.options?.batch_size !== undefined ? lookup.options.batch_size : 500,
+          max_snap_distance_meters: lookup.options?.max_snap_distance_meters !== undefined ? lookup.options.max_snap_distance_meters : 50,
+          snapped_count: stats.snapped_count,
+          fallback_count: stats.fallback_count,
+          not_applicable_count: stats.not_applicable_count,
+          snap_failed_count: stats.snap_failed_count,
+          avg_distance_meters: roundDistance(avgDistance),
+          max_distance_meters: roundDistance(maxDistance),
+          snap_query_p95_ms: p95Ms !== undefined ? roundDistance(p95Ms) : 0,
+          temp_index: isP1Verify ? (opts.verifyIndex || deps.esWriter.targetIndex || 'none') : 'none',
+          aliases_changed: false
+        });
+      }
+    }
+
     return { indexed, unique_indexed: seenIds.size, failed, deleted, read, durationSeconds };
   } catch (err) {
     if (err.details && Array.isArray(err.details.failure_samples)) {
@@ -432,6 +610,10 @@ async function flushBatch(deps, source, batch, dryRun) {
 
   if (deps.adminLookup && deps.adminLookup.enrichBatch) {
     await deps.adminLookup.enrichBatch(batch, source);
+  }
+
+  if (deps.routablePointLookup && deps.routablePointLookup.enrichBatch) {
+    await deps.routablePointLookup.enrichBatch(batch, source);
   }
 
   const enriched = batch.map(doc => deps.enrichment.enrich(doc));
@@ -840,6 +1022,17 @@ function waitForever(onShutdown) {
   });
 }
 
+function getP95(values) {
+  if (!Array.isArray(values) || values.length === 0) return undefined;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.ceil(sorted.length * 0.95) - 1;
+  return sorted[Math.max(0, index)];
+}
+
+function roundDistance(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
+}
+
 if (require.main === module) {
   main().catch(err => {
     console.error(err);
@@ -853,6 +1046,7 @@ module.exports = {
   syncSource,
   reindexAll,
   rollbackAliases,
+  reindexPreflight,
   validateSourceCountDrop,
   validateFailureTolerance,
   validateReindexTarget,

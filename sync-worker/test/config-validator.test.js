@@ -59,12 +59,76 @@ test('validateConfig: accepts filtered read-only source SQL', () => {
   )));
 });
 
+test('validateConfig: validates routable point enrichment config when enabled', () => {
+  const config = baseConfig("SELECT osm_id, name, way FROM planet_osm_point WHERE name IS NOT NULL AND amenity IS NOT NULL");
+  config.sources.push({
+    name: 'streets',
+    layer: 'street',
+    source_label: 'osm_postgis',
+    id_field: 'osm_id',
+    geometry_field: 'way',
+    sql: "SELECT osm_id, name, highway, way FROM planet_osm_line WHERE name IS NOT NULL AND highway IS NOT NULL",
+    name_fields: ['name'],
+    delete_strategy: 'source_diff'
+  });
+  config.routable_point_enrichment = {
+    enabled: true,
+    mode: 'postgis_nearest_road',
+    roads_source: 'streets',
+    max_snap_distance_meters: 50,
+    batch_size: 100,
+    fallback_to_center: true
+  };
+
+  assert.doesNotThrow(() => validateConfig(config));
+});
+
+test('validateConfig: rejects missing routable roads source', () => {
+  const config = baseConfig("SELECT osm_id, name, way FROM planet_osm_point WHERE name IS NOT NULL AND amenity IS NOT NULL");
+  config.routable_point_enrichment = {
+    enabled: true,
+    mode: 'postgis_nearest_road',
+    roads_source: 'missing_roads',
+    max_snap_distance_meters: 50,
+    batch_size: 100,
+    fallback_to_center: true
+  };
+
+  assert.throws(() => validateConfig(config), /roads_source not found/);
+});
+
+test('validateConfig: rejects unsafe SQL on routable roads source', () => {
+  const config = baseConfig("SELECT osm_id, name, way FROM planet_osm_point WHERE name IS NOT NULL AND amenity IS NOT NULL");
+  config.sources.push({
+    name: 'streets',
+    layer: 'street',
+    source_label: 'osm_postgis',
+    id_field: 'osm_id',
+    geometry_field: 'way',
+    sql: "SELECT osm_id, name, highway, way FROM planet_osm_line WHERE name IS NOT NULL FOR UPDATE",
+    name_fields: ['name'],
+    delete_strategy: 'source_diff'
+  });
+  config.routable_point_enrichment = {
+    enabled: true,
+    mode: 'postgis_nearest_road',
+    roads_source: 'streets',
+    max_snap_distance_meters: 50,
+    batch_size: 100,
+    fallback_to_center: true
+  };
+
+  assert.throws(() => validateConfig(config), /row-locking/);
+});
+
 test('source config: keeps planet_osm reads filtered and POIs scoped to allowed named categories', () => {
   assert.doesNotThrow(() => validateConfig(syncConfig));
   assert.equal(syncConfig.worker.default_country, undefined);
   assert.equal(syncConfig.worker.default_country_a, undefined);
   assert.equal(syncConfig.admin_enrichment.enabled, true);
   assert.equal(syncConfig.admin_enrichment.boundaries_source, 'admin_boundaries');
+  assert.equal(syncConfig.routable_point_enrichment.enabled, false);
+  assert.equal(syncConfig.routable_point_enrichment.roads_source, 'streets');
 
   const sources = Object.fromEntries(syncConfig.sources.map(source => [source.name, source]));
   const pois = sources.osm_pois;

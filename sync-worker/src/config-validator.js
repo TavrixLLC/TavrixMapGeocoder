@@ -33,6 +33,22 @@ const schema = {
       },
       additionalProperties: false
     },
+    routable_point_enrichment: {
+      type: 'object',
+      properties: {
+        enabled: { type: 'boolean' },
+        mode: { enum: ['postgis_nearest_road'] },
+        roads_source: { type: 'string' },
+        max_snap_distance_meters: { type: 'number', exclusiveMinimum: 0 },
+        batch_size: { type: 'integer', minimum: 1 },
+        fallback_to_center: { type: 'boolean' },
+        query_timeout_ms: { type: 'integer', minimum: 1000 },
+        source_srid_if_missing: { type: 'integer', minimum: 0 },
+        layers: { type: 'array', items: { type: 'string' }, minItems: 1 },
+        snap_admin_polygons: { type: 'boolean' }
+      },
+      additionalProperties: false
+    },
     postgis: {
       type: 'object',
       properties: {
@@ -85,6 +101,7 @@ const schema = {
         properties: {
           name: { type: 'string', pattern: '^[a-zA-Z0-9_-]+$' },
           enabled: { type: 'boolean' },
+          test_limit: { type: 'integer', minimum: 0 },
           layer: { type: 'string' },
           source_label: { type: 'string' },
           id_field: { type: 'string' },
@@ -147,6 +164,8 @@ function validateConfig(config) {
 
     validateReadOnlySql(source);
   }
+
+  validateRoutablePointConfig(config);
 }
 
 function validateReadOnlySql(source) {
@@ -171,6 +190,23 @@ function validateReadOnlySql(source) {
   if (/\bfrom\s+planet_osm_/i.test(sql) && !/\bwhere\b/i.test(sql)) {
     throw new Error(`Source ${source.name} SQL must filter planet_osm rows with a WHERE clause`);
   }
+}
+
+function validateRoutablePointConfig(config) {
+  const options = config.routable_point_enrichment;
+  if (!options || options.enabled !== true) return;
+
+  for (const field of ['mode', 'roads_source', 'max_snap_distance_meters', 'batch_size', 'fallback_to_center']) {
+    if (options[field] == null) {
+      throw new Error(`routable_point_enrichment.${field} is required when routable_point_enrichment.enabled=true`);
+    }
+  }
+
+  const roadsSource = config.sources.find(source => source.name === options.roads_source);
+  if (!roadsSource) {
+    throw new Error(`routable_point_enrichment.roads_source not found: ${options.roads_source}`);
+  }
+  validateReadOnlySql(roadsSource);
 }
 
 module.exports = {

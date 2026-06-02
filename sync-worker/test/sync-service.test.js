@@ -338,6 +338,55 @@ test('reindexAll: records source success and index version with SQLite state bac
   await store.close();
 });
 
+test('reindexAll: passes with routable point enrichment disabled', async () => {
+  const { deps, calls } = makeDeps([{ id: 'postgis:osm_pois:1' }], []);
+  deps.config.routable_point_enrichment = { enabled: false };
+  deps.routablePointLookup = {
+    enabled: false,
+    async enrichBatch(docs) {
+      calls.routableDisabledDocs = docs.length;
+      return docs;
+    }
+  };
+
+  const result = await reindexAll(deps);
+
+  assert.equal(result.validation.document_count, 1);
+  assert.equal(calls.routableDisabledDocs, 1);
+  assert.equal(calls.switchedAlias, 'pelias_v2');
+});
+
+test('reindexAll: passes with mocked routable point enrichment enabled', async () => {
+  const { deps, calls } = makeDeps([{ id: 'postgis:osm_pois:1' }], []);
+  deps.config.routable_point_enrichment = { enabled: true };
+  deps.routablePointLookup = {
+    enabled: true,
+    async enrichBatch(docs) {
+      calls.routableEnabledDocs = docs.length;
+      for (const doc of docs) {
+        doc.routable_point = { lat: 33.31, lon: 44.36 };
+        doc.routable_point_status = 'snapped';
+        doc.routable_point_type = 'snapped';
+        doc.routable_point_source = 'postgis_nearest_road';
+        doc.routable_point_distance_meters = 10;
+      }
+      return docs;
+    }
+  };
+  deps.esWriter.indexDocuments = async (_sourceName, docs) => {
+    calls.indexed.push(...docs.map(doc => doc.id));
+    calls.indexedRoutableStatuses = docs.map(doc => doc.routable_point_status);
+    return { indexed: docs.length, failed: 0 };
+  };
+
+  const result = await reindexAll(deps);
+
+  assert.equal(result.validation.document_count, 1);
+  assert.equal(calls.routableEnabledDocs, 1);
+  assert.deepEqual(calls.indexedRoutableStatuses, ['snapped']);
+  assert.equal(calls.switchedAlias, 'pelias_v2');
+});
+
 test('reindexAll: validates against unique source IDs, not bulk operation count', async () => {
   const { deps, calls } = makeDeps(
     [{ id: 'postgis:osm_pois:1' }, { id: 'postgis:osm_pois:1' }],
@@ -739,3 +788,354 @@ test('rollbackAliases: default target works after blue/green reindex with SQLite
   assert.equal(snapshot.indexes.last_index_version, 'pelias_v1');
   await store.close();
 });
+
+test('syncSource: verification mode refuses pelias_write by default', async () => {
+  const { deps } = makeDeps([{ id: 'postgis:osm_pois:1' }]);
+  deps.config.elasticsearch.write_alias = 'pelias_write';
+  deps.config.elasticsearch.read_alias = 'pelias';
+  
+  process.env.P1_ENABLED = 'true';
+  process.env.P1_VERIFY_INDEX = 'pelias_write';
+  process.env.P1_VERIFY_ALLOW_WRITE_ALIAS = 'false';
+
+  try {
+    await assert.rejects(
+      () => syncSource(deps, 'osm_pois', { mode: 'test-sync' }),
+      err => err.message.includes('Safety Error: Target index')
+    );
+  } finally {
+    delete process.env.P1_ENABLED;
+    delete process.env.P1_VERIFY_INDEX;
+    delete process.env.P1_VERIFY_ALLOW_WRITE_ALIAS;
+  }
+});
+
+test('syncSource: verification mode writes to temp index and does not switch aliases', async () => {
+  let createdIndex = null;
+  let deletedIndex = null;
+  const { deps, calls } = makeDeps([{ id: 'postgis:osm_pois:1' }], [], {
+    indexManager: {
+      async indexExists(indexName) {
+        return indexName === createdIndex;
+      },
+      async createGenericIndex(indexName) {
+        createdIndex = indexName;
+      },
+      async ensureExtendedMappings() {}
+    },
+    esClient: {
+      async search() {
+        return { hits: { hits: [] } };
+      },
+      indices: {
+        async delete({ index }) {
+          deletedIndex = index;
+        }
+      }
+    }
+  });
+
+  process.env.P1_ENABLED = 'true';
+  process.env.P1_VERIFY_INDEX = 'pelias_p1_temp_test';
+  process.env.P1_VERIFY_ALLOW_WRITE_ALIAS = 'false';
+  process.env.P1_VERIFY_KEEP_INDEX = 'false';
+
+  try {
+    const result = await syncSource(deps, 'osm_pois', { mode: 'test-sync' });
+    assert.equal(createdIndex, 'pelias_p1_temp_test');
+    assert.equal(deletedIndex, 'pelias_p1_temp_test');
+    assert.ok(calls.targets.includes('pelias_p1_temp_test'));
+    assert.equal(deps.esWriter.targetIndex, 'pelias_write');
+    assert.ok(!calls.validation.some(v => v.startsWith('switch:')));
+  } finally {
+    delete process.env.P1_ENABLED;
+    delete process.env.P1_VERIFY_INDEX;
+    delete process.env.P1_VERIFY_ALLOW_WRITE_ALIAS;
+    delete process.env.P1_VERIFY_KEEP_INDEX;
+  }
+});
+
+test('syncSource: verification mode keeps temp index when P1_VERIFY_KEEP_INDEX=true', async () => {
+  let createdIndex = null;
+  let deletedIndex = null;
+  const { deps } = makeDeps([{ id: 'postgis:osm_pois:1' }], [], {
+    indexManager: {
+      async indexExists() { return false; },
+      async createGenericIndex(indexName) { createdIndex = indexName; },
+      async ensureExtendedMappings() {}
+    },
+    esClient: {
+      async search() { return { hits: { hits: [] } }; },
+      indices: {
+        async delete({ index }) { deletedIndex = index; }
+      }
+    }
+  });
+
+  process.env.P1_ENABLED = 'true';
+  process.env.P1_VERIFY_INDEX = 'pelias_p1_temp_test_keep';
+  process.env.P1_VERIFY_KEEP_INDEX = 'true';
+
+  try {
+    await syncSource(deps, 'osm_pois', { mode: 'test-sync' });
+    assert.equal(createdIndex, 'pelias_p1_temp_test_keep');
+    assert.equal(deletedIndex, null);
+  } finally {
+    delete process.env.P1_ENABLED;
+    delete process.env.P1_VERIFY_INDEX;
+    delete process.env.P1_VERIFY_KEEP_INDEX;
+  }
+});
+
+test('syncSource: SYNC_LIMIT_PER_SOURCE env variable and source test_limit applies to PostGIS query', async () => {
+  let receivedLimit = null;
+  const { deps } = makeDeps([{ id: 'postgis:osm_pois:1' }], [], {
+    postgisReader: {
+      async *streamSource(source, limit) {
+        receivedLimit = limit;
+        yield { id: 'postgis:osm_pois:1' };
+      }
+    }
+  });
+
+  process.env.SYNC_LIMIT_PER_SOURCE = '50';
+  try {
+    await syncSource(deps, 'osm_pois', { mode: 'test-sync' });
+    assert.equal(receivedLimit, 50);
+  } finally {
+    delete process.env.SYNC_LIMIT_PER_SOURCE;
+  }
+
+  deps.config.sources[0].test_limit = 25;
+  await syncSource(deps, 'osm_pois', { mode: 'test-sync' });
+  assert.equal(receivedLimit, 25);
+});
+
+test('syncSource: P1 stats are logged upon sync completion when routable point enrichment is enabled', async () => {
+  const loggedMessages = [];
+  const loggedMetas = [];
+  const { deps } = makeDeps([{ id: 'postgis:osm_pois:1' }], [], {
+    log: {
+      info(msg, meta) {
+        loggedMessages.push(msg);
+        loggedMetas.push(meta);
+      },
+      warn() {},
+      error() {}
+    },
+    routablePointLookup: {
+      enabled: true,
+      initStats() {
+        this.stats = {
+          snapped_count: 5,
+          fallback_count: 2,
+          not_applicable_count: 1,
+          snap_failed_count: 0,
+          distances: [1.2, 3.4],
+          query_durations: [15, 20]
+        };
+      },
+      getStats() {
+        return this.stats;
+      }
+    }
+  });
+
+  await syncSource(deps, 'osm_pois', { mode: 'test-sync' });
+
+  const statsLogIndex = loggedMessages.indexOf('P1 Routable Point Enrichment Stats');
+  assert.ok(statsLogIndex >= 0);
+  const meta = loggedMetas[statsLogIndex];
+  assert.equal(meta.source, 'osm_pois');
+  assert.equal(meta.snapped_count, 5);
+  assert.equal(meta.fallback_count, 2);
+  assert.equal(meta.not_applicable_count, 1);
+  assert.equal(meta.snap_failed_count, 0);
+  assert.equal(meta.avg_distance_meters, 2.3);
+  assert.equal(meta.max_distance_meters, 3.4);
+  assert.equal(meta.snap_query_p95_ms, 20);
+});
+
+test('syncSource: verification disabled mode does not output P1 stats or create temp index', async () => {
+  const loggedMessages = [];
+  const { deps } = makeDeps([{ id: 'postgis:osm_pois:1' }], [], {
+    log: {
+      info(msg) { loggedMessages.push(msg); },
+      warn() {},
+      error() {}
+    },
+    routablePointLookup: {
+      enabled: false
+    }
+  });
+
+  await syncSource(deps, 'osm_pois', { mode: 'test-sync' });
+
+  assert.ok(!loggedMessages.includes('P1 Routable Point Enrichment Stats'));
+});
+
+test('syncSource: preflight fail fast if GiST index is missing', async () => {
+  const { deps } = makeDeps([{ id: 'postgis:osm_pois:1' }], [], {
+    routablePointLookup: {
+      enabled: true,
+      gistIndexExists: false
+    }
+  });
+
+  await assert.rejects(
+    () => syncSource(deps, 'osm_pois', { mode: 'test-sync' }),
+    err => err.message === 'missing_required_spatial_index'
+  );
+});
+
+test('syncSource: handles query timeout and uses center fallback', async () => {
+  const { deps } = makeDeps([{ id: 'postgis:osm_pois:1', lon: 44.36, lat: 33.31 }]);
+  
+  const mockLookup = {
+    enabled: true,
+    roadsSource: { name: 'streets', geometry_field: 'way', sql: 'SELECT way FROM planet_osm_line' },
+    options: {
+      batch_size: 100,
+      fallback_to_center: true,
+      query_timeout_ms: 1000
+    },
+    initStats() {
+      this.stats = {
+        snapped_count: 0,
+        fallback_count: 0,
+        not_applicable_count: 0,
+        snap_failed_count: 0,
+        distances: [],
+        query_durations: []
+      };
+    },
+    getStats() {
+      return this.stats;
+    },
+    async enrichBatch(docs, source) {
+      const err = new Error('canceling statement due to statement timeout');
+      err.code = '57014';
+      
+      const stats = this.stats;
+      stats.snap_failed_count += docs.length;
+      
+      for (const doc of docs) {
+        doc.routable_point = { lat: Number(doc.lat), lon: Number(doc.lon) };
+        doc.routable_point_type = 'centroid_fallback';
+        doc.routable_point_status = 'centroid_fallback';
+        doc.routable_point_source = 'center_point';
+        doc.routable_point_reason = 'statement_timeout';
+      }
+      return docs;
+    }
+  };
+  
+  const depsWithLookup = {
+    ...deps,
+    routablePointLookup: mockLookup
+  };
+
+  await syncSource(depsWithLookup, 'osm_pois', { mode: 'test-sync' });
+  
+  assert.equal(mockLookup.stats.snap_failed_count, 1);
+});
+
+test('verify:enrichment: verify() refuses production write_alias by default', async () => {
+  const { verify } = require('../src/verify-enrichment');
+  const oldConfigPath = process.env.SYNC_CONFIG_PATH;
+  const oldVerifyIndex = process.env.P1_VERIFY_INDEX;
+  const oldAllowAlias = process.env.P1_VERIFY_ALLOW_WRITE_ALIAS;
+
+  process.env.SYNC_CONFIG_PATH = 'c:/TavrixMap/TavrixMapGeocoder/config/pelias-postgis-readonly-sync.json';
+  process.env.P1_VERIFY_INDEX = 'pelias_write';
+  process.env.P1_VERIFY_ALLOW_WRITE_ALIAS = 'false';
+
+  try {
+    await assert.rejects(
+      () => verify(),
+      err => err.message.includes('Safety Error: Verification target index')
+    );
+  } finally {
+    if (oldConfigPath !== undefined) process.env.SYNC_CONFIG_PATH = oldConfigPath;
+    else delete process.env.SYNC_CONFIG_PATH;
+
+    if (oldVerifyIndex !== undefined) process.env.P1_VERIFY_INDEX = oldVerifyIndex;
+    else delete process.env.P1_VERIFY_INDEX;
+
+    if (oldAllowAlias !== undefined) process.env.P1_VERIFY_ALLOW_WRITE_ALIAS = oldAllowAlias;
+    else delete process.env.P1_VERIFY_ALLOW_WRITE_ALIAS;
+  }
+});
+
+test('syncSource: reindex mode with P1 enabled does not use verification temp index', async () => {
+  const { deps, calls } = makeDeps([{ id: 'postgis:osm_pois:1' }], [], {
+    indexManager: {
+      async indexExists() { return false; },
+      async createGenericIndex() { throw new Error('Should not create temp index in reindex mode'); },
+      async ensureExtendedMappings() {}
+    }
+  });
+
+  process.env.P1_ENABLED = 'true';
+  process.env.P1_VERIFY_INDEX = 'pelias_p1_temp_test';
+
+  try {
+    await syncSource(deps, 'osm_pois', { mode: 'blue-green-reindex' });
+    assert.deepEqual(calls.targets, []);
+  } finally {
+    delete process.env.P1_ENABLED;
+    delete process.env.P1_VERIFY_INDEX;
+  }
+});
+
+test('reindexPreflight: prints stats correctly', async () => {
+  const printed = [];
+  const originalLog = console.log;
+  console.log = (...args) => printed.push(args.join(' '));
+
+  const mockApp = {
+    indexManager: {
+      async aliasTargets(aliasName) {
+        return [aliasName + '_target'];
+      },
+      async nextVersionIndexName() {
+        return 'pelias_v4';
+      }
+    },
+    routablePointLookup: {
+      enabled: true,
+      roadsSrid: 4326,
+      gistIndexExists: true,
+      options: {
+        batch_size: 50,
+        max_snap_distance_meters: 30
+      }
+    }
+  };
+
+  try {
+    const { reindexPreflight } = require('../src/index');
+    await reindexPreflight(mockApp, {
+      elasticsearch: {
+        read_alias: 'pelias',
+        write_alias: 'pelias_write'
+      }
+    }, { info() {}, warn() {}, error() {} });
+
+    const output = printed.join('\n');
+    assert.ok(output.includes('Target Index (Next Version): pelias_v4'));
+    assert.ok(output.includes('pelias -> ["pelias_target"]'));
+    assert.ok(output.includes('pelias_write -> ["pelias_write_target"]'));
+    assert.ok(output.includes('P1 Enabled: true'));
+    assert.ok(output.includes('Road SRID: 4326'));
+    assert.ok(output.includes('GiST Index Exists: true'));
+    assert.ok(output.includes('Batch Size: 50'));
+    assert.ok(output.includes('Max Snap Distance Meters: 30'));
+  } finally {
+    console.log = originalLog;
+  }
+});
+
+
+
+

@@ -10,9 +10,11 @@
     "sync:source": "node src/index.js sync:source",
     "reindex:all": "node src/index.js reindex:all",
     "reindex:source": "node src/index.js reindex:source",
+    "reindex:preflight": "node src/index.js reindex:preflight",
     "rollback:aliases": "node src/index.js rollback:aliases",
     "state:migrate-json-to-sqlite": "node src/index.js state:migrate-json-to-sqlite",
     "health": "node src/index.js health",
+    "verify:enrichment": "node src/verify-enrichment.js",
     "test": "node --test"
   },
   "dependencies": {
