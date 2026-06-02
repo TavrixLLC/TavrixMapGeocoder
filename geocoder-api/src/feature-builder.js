@@ -36,8 +36,8 @@ function featureFromHit(hit, options = {}) {
 
   // ── Base identity (always returned) ────────────────────────────
   const properties = {
-    id: sourceId,
-    gid: `${doc.source || 'unknown'}:${doc.layer || 'venue'}:${sourceId}`,
+    id: doc.id || sourceId,
+    gid: doc.gid || `${doc.source || 'unknown'}:${doc.layer || 'venue'}:${sourceId}`,
     layer: doc.layer,
     source: doc.source,
     source_id: sourceId,
@@ -50,7 +50,9 @@ function featureFromHit(hit, options = {}) {
   if (category.length > 0) {
     properties.category = category[0];
     properties.categories = category;
-    properties.category_ids = category;
+    properties.category_ids = Array.isArray(doc.category_ids) && doc.category_ids.length > 0
+      ? doc.category_ids
+      : category;
   }
 
   // ── Confidence / match quality (always returned when present) ──
@@ -68,6 +70,10 @@ function featureFromHit(hit, options = {}) {
 
   // ── Hierarchy from parent (always) ─────────────────────────────
   extractHierarchy(properties, doc.parent);
+  extractTopLevelHierarchy(properties, doc);
+  if (doc.admin_enrichment_status) {
+    properties.admin_enrichment_status = doc.admin_enrichment_status;
+  }
 
   // ── Address fields from address_parts (always) ─────────────────
   extractAddressFields(properties, doc.address_parts);
@@ -98,7 +104,8 @@ function featureFromHit(hit, options = {}) {
   // ── Debug mode: ranking internals, source_tags ─────────────────
   if (responseMode === 'debug') {
     if (hit._score != null) properties.relevance_score = hit._score;
-    if (addendum) properties.source_tags = addendum.postgis || {};
+    if (doc.source_tags) properties.source_tags = doc.source_tags;
+    else if (addendum) properties.source_tags = addendum.postgis || {};
     if (hit._explanation) properties.rank_debug = hit._explanation;
   }
 
@@ -148,6 +155,13 @@ function extractHierarchy(properties, parent) {
   for (const field of HIERARCHY_FIELDS) {
     const value = Array.isArray(parent[field]) ? parent[field][0] : parent[field];
     if (value) properties[field] = value;
+  }
+}
+
+function extractTopLevelHierarchy(properties, doc) {
+  if (!doc) return;
+  for (const field of HIERARCHY_FIELDS) {
+    if (!properties[field] && doc[field]) properties[field] = doc[field];
   }
 }
 
@@ -288,6 +302,7 @@ module.exports = {
   featureFromHit,
   enrichPOIFields,
   extractHierarchy,
+  extractTopLevelHierarchy,
   extractAddressFields,
   buildRoutablePoint,
   addLanguageFields,

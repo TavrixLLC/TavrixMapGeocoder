@@ -1,0 +1,311 @@
+{
+  "version": 1,
+  "languages": ["en", "ar", "ku", "ckb"],
+  "intent_groups": {
+    "food": {
+      "names": {
+        "en": "Food and drink",
+        "ar": "\u0623\u0643\u0644 \u0648\u0634\u0631\u0628",
+        "ku": "\u062e\u0648\u0627\u0631\u062f\u0646 \u0648 \u062e\u0648\u0627\u0631\u062f\u0646\u06d5\u0648\u06d5",
+        "ckb": "\u062e\u0648\u0627\u0631\u062f\u0646 \u0648 \u062e\u0648\u0627\u0631\u062f\u0646\u06d5\u0648\u06d5"
+      },
+      "aliases": {
+        "en": ["food", "dining", "eat", "meal"],
+        "ar": ["\u0627\u0643\u0644", "\u0623\u0643\u0644", "\u0637\u0639\u0627\u0645", "\u0645\u0637\u0627\u0639\u0645"],
+        "ku": ["\u062e\u0648\u0627\u0631\u062f\u0646"],
+        "ckb": ["\u062e\u0648\u0627\u0631\u062f\u0646"]
+      },
+      "boost": 1.25
+    },
+    "health": {
+      "names": { "en": "Health", "ar": "\u0635\u062d\u0629", "ku": "\u062a\u06d5\u0646\u062f\u0631\u0648\u0633\u062a\u06cc", "ckb": "\u062a\u06d5\u0646\u062f\u0631\u0648\u0633\u062a\u06cc" },
+      "aliases": {
+        "en": ["health", "medical", "medicine"],
+        "ar": ["\u0635\u062d\u0629", "\u0637\u0628", "\u0637\u0628\u064a"],
+        "ku": ["\u062a\u06d5\u0646\u062f\u0631\u0648\u0633\u062a\u06cc"],
+        "ckb": ["\u062a\u06d5\u0646\u062f\u0631\u0648\u0633\u062a\u06cc"]
+      },
+      "boost": 1.2
+    },
+    "transport": {
+      "names": { "en": "Transport", "ar": "\u0646\u0642\u0644", "ku": "\u06af\u0648\u0627\u0633\u062a\u0646\u06d5\u0648\u06d5", "ckb": "\u06af\u0648\u0627\u0633\u062a\u0646\u06d5\u0648\u06d5" },
+      "aliases": {
+        "en": ["transport", "travel", "car"],
+        "ar": ["\u0646\u0642\u0644", "\u0633\u064a\u0627\u0631\u0629", "\u0648\u0642\u0648\u062f"],
+        "ku": ["\u06af\u0648\u0627\u0633\u062a\u0646\u06d5\u0648\u06d5"],
+        "ckb": ["\u06af\u0648\u0627\u0633\u062a\u0646\u06d5\u0648\u06d5"]
+      },
+      "boost": 1.15
+    },
+    "lodging": {
+      "names": { "en": "Lodging", "ar": "\u0633\u0643\u0646", "ku": "\u0645\u0627\u0646\u06d5\u0648\u06d5", "ckb": "\u0645\u0627\u0646\u06d5\u0648\u06d5" },
+      "aliases": {
+        "en": ["lodging", "accommodation", "stay"],
+        "ar": ["\u0633\u0643\u0646", "\u0627\u0642\u0627\u0645\u0629", "\u0625\u0642\u0627\u0645\u0629", "\u0641\u0646\u0627\u062f\u0642"],
+        "ku": ["\u0645\u0627\u0646\u06d5\u0648\u06d5"],
+        "ckb": ["\u0645\u0627\u0646\u06d5\u0648\u06d5"]
+      },
+      "boost": 1.15
+    },
+    "shopping": {
+      "names": { "en": "Shopping", "ar": "\u062a\u0633\u0648\u0642", "ku": "\u0628\u0627\u0632\u0627\u0695\u06a9\u0631\u062f\u0646", "ckb": "\u0628\u0627\u0632\u0627\u0695\u06a9\u0631\u062f\u0646" },
+      "aliases": {
+        "en": ["shopping", "shop", "store", "market"],
+        "ar": ["\u062a\u0633\u0648\u0642", "\u0645\u062d\u0644", "\u0633\u0648\u0642", "\u0628\u0642\u0627\u0644\u0629"],
+        "ku": ["\u0628\u0627\u0632\u0627\u0695"],
+        "ckb": ["\u0628\u0627\u0632\u0627\u0695"]
+      },
+      "boost": 1.1
+    },
+    "education": {
+      "names": { "en": "Education", "ar": "\u062a\u0639\u0644\u064a\u0645", "ku": "\u067e\u06d5\u0631\u0648\u06d5\u0631\u062f\u06d5", "ckb": "\u067e\u06d5\u0631\u0648\u06d5\u0631\u062f\u06d5" },
+      "aliases": {
+        "en": ["education", "study"],
+        "ar": ["\u062a\u0639\u0644\u064a\u0645", "\u062f\u0631\u0627\u0633\u0629"],
+        "ku": ["\u067e\u06d5\u0631\u0648\u06d5\u0631\u062f\u06d5"],
+        "ckb": ["\u067e\u06d5\u0631\u0648\u06d5\u0631\u062f\u06d5"]
+      },
+      "boost": 1.05
+    },
+    "emergency": {
+      "names": { "en": "Emergency", "ar": "\u0637\u0648\u0627\u0631\u0626", "ku": "\u0641\u0631\u06cc\u0627\u06af\u0648\u0632\u0627\u0631\u06cc", "ckb": "\u0641\u0631\u06cc\u0627\u06af\u0648\u0632\u0627\u0631\u06cc" },
+      "aliases": {
+        "en": ["emergency", "safety"],
+        "ar": ["\u0637\u0648\u0627\u0631\u0626", "\u0634\u0631\u0637\u0629", "\u0625\u0633\u0639\u0627\u0641"],
+        "ku": ["\u0641\u0631\u06cc\u0627\u06af\u0648\u0632\u0627\u0631\u06cc"],
+        "ckb": ["\u0641\u0631\u06cc\u0627\u06af\u0648\u0632\u0627\u0631\u06cc"]
+      },
+      "boost": 1.1
+    },
+    "finance": {
+      "names": { "en": "Finance", "ar": "\u0645\u0627\u0644\u064a\u0629", "ku": "\u062f\u0627\u0631\u0627\u06cc\u06cc", "ckb": "\u062f\u0627\u0631\u0627\u06cc\u06cc" },
+      "aliases": {
+        "en": ["finance", "money", "cash"],
+        "ar": ["\u0645\u0627\u0644\u064a\u0629", "\u0645\u0635\u0631\u0641", "\u0646\u0642\u062f"],
+        "ku": ["\u062f\u0627\u0631\u0627\u06cc\u06cc"],
+        "ckb": ["\u062f\u0627\u0631\u0627\u06cc\u06cc"]
+      },
+      "boost": 1.05
+    }
+  },
+  "categories": [
+    {
+      "id": "restaurant",
+      "wikidata": ["Q11707"],
+      "intent_groups": ["food"],
+      "importance": 0.9,
+      "names": { "en": "Restaurant", "ar": "\u0645\u0637\u0639\u0645", "ku": "\u0686\u06ce\u0634\u062a\u062e\u0627\u0646\u06d5", "ckb": "\u0686\u06ce\u0634\u062a\u062e\u0627\u0646\u06d5" },
+      "aliases": {
+        "en": ["restaurant", "restaurants", "dining", "food"],
+        "ar": ["\u0645\u0637\u0639\u0645", "\u0645\u0637\u0627\u0639\u0645", "\u0627\u0643\u0644", "\u0623\u0643\u0644", "\u0637\u0639\u0627\u0645"],
+        "ku": ["\u0686\u06ce\u0634\u062a\u062e\u0627\u0646\u06d5"],
+        "ckb": ["\u0686\u06ce\u0634\u062a\u062e\u0627\u0646\u06d5"]
+      },
+      "osm_tags": [{ "key": "amenity", "value": "restaurant" }],
+      "boost": 1.45
+    },
+    {
+      "id": "cafe",
+      "wikidata": ["Q30022"],
+      "intent_groups": ["food"],
+      "importance": 0.82,
+      "names": { "en": "Cafe", "ar": "\u0645\u0642\u0647\u0649", "ku": "\u0642\u0627\u0648\u06d5\u062e\u0627\u0646\u06d5", "ckb": "\u0642\u0627\u0648\u06d5\u062e\u0627\u0646\u06d5" },
+      "aliases": {
+        "en": ["cafe", "coffee", "coffee shop", "coffeeshop"],
+        "ar": ["\u0645\u0642\u0647\u0649", "\u0643\u0627\u0641\u064a\u0647", "\u0643\u0627\u0641\u064a", "\u0642\u0647\u0648\u0629"],
+        "ku": ["\u0642\u0627\u0648\u06d5\u062e\u0627\u0646\u06d5"],
+        "ckb": ["\u0642\u0627\u0648\u06d5\u062e\u0627\u0646\u06d5"]
+      },
+      "osm_tags": [{ "key": "amenity", "value": "cafe" }],
+      "boost": 1.35
+    },
+    {
+      "id": "fast_food",
+      "wikidata": ["Q1751429"],
+      "intent_groups": ["food"],
+      "importance": 0.76,
+      "names": { "en": "Fast Food", "ar": "\u0648\u062c\u0628\u0627\u062a \u0633\u0631\u064a\u0639\u0629" },
+      "aliases": { "en": ["fast food", "fastfood"], "ar": ["\u0648\u062c\u0628\u0627\u062a \u0633\u0631\u064a\u0639\u0629", "\u0633\u0631\u064a\u0639"] },
+      "osm_tags": [{ "key": "amenity", "value": "fast_food" }],
+      "boost": 1.2
+    },
+    {
+      "id": "pharmacy",
+      "wikidata": ["Q13107184"],
+      "intent_groups": ["health"],
+      "importance": 0.95,
+      "names": { "en": "Pharmacy", "ar": "\u0635\u064a\u062f\u0644\u064a\u0629", "ku": "\u062f\u06d5\u0631\u0645\u0627\u0646\u062e\u0627\u0646\u06d5", "ckb": "\u062f\u06d5\u0631\u0645\u0627\u0646\u062e\u0627\u0646\u06d5" },
+      "aliases": {
+        "en": ["pharmacy", "drugstore", "chemist", "medicine"],
+        "ar": ["\u0635\u064a\u062f\u0644\u064a\u0629", "\u0635\u064a\u062f\u0644\u064a\u0647", "\u0635\u064a\u062f\u0644\u064a\u0627\u062a", "\u062f\u0648\u0627\u0621"],
+        "ku": ["\u062f\u06d5\u0631\u0645\u0627\u0646\u062e\u0627\u0646\u06d5"],
+        "ckb": ["\u062f\u06d5\u0631\u0645\u0627\u0646\u062e\u0627\u0646\u06d5"]
+      },
+      "osm_tags": [{ "key": "amenity", "value": "pharmacy" }, { "key": "shop", "value": "chemist" }],
+      "boost": 1.45
+    },
+    {
+      "id": "hospital",
+      "wikidata": ["Q16917"],
+      "intent_groups": ["health", "emergency"],
+      "importance": 0.98,
+      "names": { "en": "Hospital", "ar": "\u0645\u0633\u062a\u0634\u0641\u0649", "ku": "\u0646\u06d5\u062e\u06c6\u0634\u062e\u0627\u0646\u06d5", "ckb": "\u0646\u06d5\u062e\u06c6\u0634\u062e\u0627\u0646\u06d5" },
+      "aliases": { "en": ["hospital", "medical center"], "ar": ["\u0645\u0633\u062a\u0634\u0641\u0649", "\u0645\u0634\u0641\u0649", "\u0637\u0648\u0627\u0631\u0626"], "ku": ["\u0646\u06d5\u062e\u06c6\u0634\u062e\u0627\u0646\u06d5"], "ckb": ["\u0646\u06d5\u062e\u06c6\u0634\u062e\u0627\u0646\u06d5"] },
+      "osm_tags": [{ "key": "amenity", "value": "hospital" }, { "key": "healthcare", "value": "hospital" }],
+      "boost": 1.5
+    },
+    {
+      "id": "clinic",
+      "wikidata": ["Q1774898"],
+      "intent_groups": ["health"],
+      "importance": 0.76,
+      "names": { "en": "Clinic", "ar": "\u0639\u064a\u0627\u062f\u0629" },
+      "aliases": { "en": ["clinic", "doctor", "medical clinic"], "ar": ["\u0639\u064a\u0627\u062f\u0629", "\u0637\u0628\u064a\u0628", "\u0645\u0631\u0643\u0632 \u0635\u062d\u064a"] },
+      "osm_tags": [{ "key": "amenity", "value": "clinic" }, { "key": "healthcare", "value": "clinic" }],
+      "boost": 1.2
+    },
+    {
+      "id": "fuel",
+      "wikidata": ["Q205495"],
+      "intent_groups": ["transport"],
+      "importance": 0.88,
+      "names": { "en": "Fuel Station", "ar": "\u0645\u062d\u0637\u0629 \u0648\u0642\u0648\u062f" },
+      "aliases": {
+        "en": ["fuel", "gas", "gas station", "petrol", "fuel station", "gas_station"],
+        "ar": ["\u0628\u0646\u0632\u064a\u0646", "\u0645\u062d\u0637\u0629 \u0628\u0646\u0632\u064a\u0646", "\u0648\u0642\u0648\u062f", "\u0645\u062d\u0637\u0629 \u0648\u0642\u0648\u062f"]
+      },
+      "osm_tags": [{ "key": "amenity", "value": "fuel" }],
+      "boost": 1.35
+    },
+    {
+      "id": "hotel",
+      "wikidata": ["Q27686"],
+      "intent_groups": ["lodging"],
+      "importance": 0.86,
+      "names": { "en": "Hotel", "ar": "\u0641\u0646\u062f\u0642" },
+      "aliases": { "en": ["hotel", "hotels", "lodging", "accommodation"], "ar": ["\u0641\u0646\u062f\u0642", "\u0641\u0646\u0627\u062f\u0642", "\u0646\u0632\u0644"] },
+      "osm_tags": [{ "key": "tourism", "value": "hotel" }],
+      "boost": 1.3
+    },
+    {
+      "id": "bakery",
+      "wikidata": ["Q274393"],
+      "intent_groups": ["food", "shopping"],
+      "importance": 0.7,
+      "names": { "en": "Bakery", "ar": "\u0645\u062e\u0628\u0632" },
+      "aliases": { "en": ["bakery", "bread", "oven"], "ar": ["\u0645\u062e\u0628\u0632", "\u0641\u0631\u0646", "\u0635\u0645\u0648\u0646", "\u062e\u0628\u0632"] },
+      "osm_tags": [{ "key": "shop", "value": "bakery" }],
+      "boost": 1.2
+    },
+    {
+      "id": "hairdresser",
+      "wikidata": ["Q958567"],
+      "intent_groups": ["shopping"],
+      "importance": 0.68,
+      "names": { "en": "Hairdresser", "ar": "\u062d\u0644\u0627\u0642" },
+      "aliases": { "en": ["hairdresser", "barber", "salon"], "ar": ["\u062d\u0644\u0627\u0642", "\u0635\u0627\u0644\u0648\u0646"] },
+      "osm_tags": [{ "key": "shop", "value": "hairdresser" }, { "key": "shop", "value": "beauty" }],
+      "boost": 1.15
+    },
+    {
+      "id": "supermarket",
+      "wikidata": ["Q180846"],
+      "intent_groups": ["shopping"],
+      "importance": 0.78,
+      "names": { "en": "Supermarket", "ar": "\u0633\u0648\u0628\u0631\u0645\u0627\u0631\u0643\u062a" },
+      "aliases": { "en": ["supermarket", "grocery", "market"], "ar": ["\u0633\u0648\u0628\u0631\u0645\u0627\u0631\u0643\u062a", "\u0628\u0642\u0627\u0644\u0629", "\u0633\u0648\u0642"] },
+      "osm_tags": [{ "key": "shop", "value": "supermarket" }, { "key": "shop", "value": "convenience" }],
+      "boost": 1.12
+    },
+    {
+      "id": "bank",
+      "wikidata": ["Q22687"],
+      "intent_groups": ["finance"],
+      "importance": 0.78,
+      "names": { "en": "Bank", "ar": "\u0628\u0646\u0643" },
+      "aliases": { "en": ["bank", "finance"], "ar": ["\u0628\u0646\u0643", "\u0645\u0635\u0631\u0641"] },
+      "osm_tags": [{ "key": "amenity", "value": "bank" }],
+      "boost": 1.12
+    },
+    {
+      "id": "atm",
+      "wikidata": ["Q81235"],
+      "intent_groups": ["finance"],
+      "importance": 0.72,
+      "names": { "en": "ATM", "ar": "\u0635\u0631\u0627\u0641 \u0622\u0644\u064a" },
+      "aliases": { "en": ["atm", "cash machine"], "ar": ["\u0635\u0631\u0627\u0641", "\u0635\u0631\u0627\u0641 \u0627\u0644\u064a", "\u0635\u0631\u0627\u0641 \u0622\u0644\u064a"] },
+      "osm_tags": [{ "key": "amenity", "value": "atm" }],
+      "boost": 1.1
+    },
+    {
+      "id": "parking",
+      "wikidata": ["Q6501349"],
+      "intent_groups": ["transport"],
+      "importance": 0.65,
+      "names": { "en": "Parking", "ar": "\u0645\u0648\u0642\u0641 \u0633\u064a\u0627\u0631\u0627\u062a" },
+      "aliases": { "en": ["parking", "car park", "parking lot"], "ar": ["\u0645\u0648\u0642\u0641", "\u0643\u0631\u0627\u062c", "\u0645\u0648\u0642\u0641 \u0633\u064a\u0627\u0631\u0627\u062a"] },
+      "osm_tags": [{ "key": "amenity", "value": "parking" }],
+      "boost": 1.05
+    },
+    {
+      "id": "school",
+      "wikidata": ["Q3914"],
+      "intent_groups": ["education"],
+      "importance": 0.72,
+      "names": { "en": "School", "ar": "\u0645\u062f\u0631\u0633\u0629" },
+      "aliases": { "en": ["school", "education"], "ar": ["\u0645\u062f\u0631\u0633\u0629", "\u062a\u0639\u0644\u064a\u0645"] },
+      "osm_tags": [{ "key": "amenity", "value": "school" }],
+      "boost": 1.08
+    },
+    {
+      "id": "university",
+      "wikidata": ["Q3918"],
+      "intent_groups": ["education"],
+      "importance": 0.8,
+      "names": { "en": "University", "ar": "\u062c\u0627\u0645\u0639\u0629", "ku": "\u0632\u0627\u0646\u06a9\u06c6", "ckb": "\u0632\u0627\u0646\u06a9\u06c6" },
+      "aliases": { "en": ["university", "college"], "ar": ["\u062c\u0627\u0645\u0639\u0629", "\u0643\u0644\u064a\u0629"], "ku": ["\u0632\u0627\u0646\u06a9\u06c6"], "ckb": ["\u0632\u0627\u0646\u06a9\u06c6"] },
+      "osm_tags": [{ "key": "amenity", "value": "university" }, { "key": "amenity", "value": "college" }],
+      "boost": 1.1
+    },
+    {
+      "id": "police",
+      "wikidata": ["Q861951"],
+      "intent_groups": ["emergency"],
+      "importance": 0.76,
+      "names": { "en": "Police Station", "ar": "\u0645\u0631\u0643\u0632 \u0634\u0631\u0637\u0629" },
+      "aliases": { "en": ["police", "police station"], "ar": ["\u0634\u0631\u0637\u0629", "\u0645\u0631\u0643\u0632 \u0634\u0631\u0637\u0629"] },
+      "osm_tags": [{ "key": "amenity", "value": "police" }],
+      "boost": 1.1
+    },
+    {
+      "id": "fire_station",
+      "wikidata": ["Q1195942"],
+      "intent_groups": ["emergency"],
+      "importance": 0.74,
+      "names": { "en": "Fire Station", "ar": "\u0645\u0631\u0643\u0632 \u0625\u0637\u0641\u0627\u0621" },
+      "aliases": { "en": ["fire station", "firefighter"], "ar": ["\u0625\u0637\u0641\u0627\u0621", "\u0645\u0637\u0627\u0641\u0626", "\u0645\u0631\u0643\u0632 \u0627\u0637\u0641\u0627\u0621"] },
+      "osm_tags": [{ "key": "amenity", "value": "fire_station" }],
+      "boost": 1.08
+    },
+    {
+      "id": "mosque",
+      "wikidata": ["Q32815"],
+      "intent_groups": ["worship"],
+      "importance": 0.7,
+      "names": { "en": "Mosque", "ar": "\u0645\u0633\u062c\u062f", "ku": "\u0645\u0632\u06af\u06d5\u0648\u062a", "ckb": "\u0645\u0632\u06af\u06d5\u0648\u062a" },
+      "aliases": { "en": ["mosque", "masjid"], "ar": ["\u0645\u0633\u062c\u062f", "\u062c\u0627\u0645\u0639"], "ku": ["\u0645\u0632\u06af\u06d5\u0648\u062a"], "ckb": ["\u0645\u0632\u06af\u06d5\u0648\u062a"] },
+      "osm_tags": [{ "key": "amenity", "value": "place_of_worship" }, { "key": "religion", "value": "muslim" }],
+      "boost": 1.04
+    }
+  ],
+  "place_variants": [
+    { "id": "baghdad", "terms": ["Baghdad", "Bagdad", "\u0628\u063a\u062f\u0627\u062f"] },
+    { "id": "karrada", "terms": ["Karrada", "Karada", "\u0627\u0644\u0643\u0631\u0627\u062f\u0629", "\u0643\u0631\u0627\u062f\u0629"] },
+    { "id": "erbil", "terms": ["Erbil", "Arbil", "Hawler", "\u0647\u06d5\u0648\u0644\u06ce\u0631", "\u0627\u0631\u0628\u064a\u0644", "\u0623\u0631\u0628\u064a\u0644"] },
+    { "id": "basra", "terms": ["Basra", "\u0627\u0644\u0628\u0635\u0631\u0629", "\u0628\u0635\u0631\u0629"] },
+    { "id": "najaf", "terms": ["Najaf", "\u0627\u0644\u0646\u062c\u0641", "\u0646\u062c\u0641"] },
+    { "id": "mosul", "terms": ["Mosul", "\u0627\u0644\u0645\u0648\u0635\u0644", "\u0645\u0648\u0635\u0644"] },
+    { "id": "sulaymaniyah", "terms": ["Sulaymaniyah", "Sulaimaniyah", "Slemani", "\u0627\u0644\u0633\u0644\u064a\u0645\u0627\u0646\u064a\u0629", "\u0633\u0644\u064a\u0645\u0627\u0646\u064a\u0629", "\u0633\u0644\u06ce\u0645\u0627\u0646\u06cc"] },
+    { "id": "karbala", "terms": ["Karbala", "Kerbala", "\u0643\u0631\u0628\u0644\u0627\u0621", "\u0643\u0631\u0628\u0644\u0627"] }
+  ]
+}

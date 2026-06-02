@@ -5,7 +5,13 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test"
+    "build:category-wikidata": "node scripts/build-category-wikidata.js",
+    "test": "node --test",
+    "test:e2e:quality": "node --test test/e2e-quality.test.js",
+    "test:perf": "node --test test/performance.test.js",
+    "test:quality-gate": "node scripts/quality-gate.js",
+    "test:quality-matrix": "node scripts/quality-matrix.js",
+    "test:routing": "node --test test/routing-integration.test.js"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^8.16.2",

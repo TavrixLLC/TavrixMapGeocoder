@@ -14,15 +14,17 @@ function loadConfig(overrides = {}) {
     elasticsearchUrl: process.env.ELASTICSEARCH_URL || 'http://elasticsearch:9200',
     peliasAlias: process.env.PELIAS_INDEX_ALIAS || 'pelias',
     esRequestTimeoutMs: Number(process.env.ES_REQUEST_TIMEOUT_MS || 3000),
+    esExpectedReplicas: Number(process.env.ES_EXPECTED_REPLICAS || process.env.PELIAS_INDEX_REPLICAS || 0),
 
     // API request timeout
     apiRequestTimeoutMs: Number(process.env.API_REQUEST_TIMEOUT_MS || 5000),
 
     // Query mode: 'pelias' | 'direct_es' | 'hybrid'
-    queryMode: process.env.GEOCODER_QUERY_MODE || 'pelias',
+    queryMode: process.env.GEOCODER_QUERY_MODE || 'hybrid',
 
     // Worker state
     workerStatePath: process.env.WORKER_STATE_PATH || '/app/state/sync-state.json',
+    syncConfigPath: process.env.SYNC_CONFIG_PATH || '/app/config/pelias-postgis-readonly-sync.json',
     workerStaleThresholdSeconds: Number(process.env.WORKER_STALE_THRESHOLD_SECONDS || 86400),
 
     // Batch
@@ -31,6 +33,12 @@ function loadConfig(overrides = {}) {
     // Result limits
     maxSize: Number(process.env.MAX_SIZE || 40),
     defaultSize: Number(process.env.DEFAULT_SIZE || 10),
+    searchCacheTtlMs: Number(process.env.SEARCH_CACHE_TTL_MS || 5000),
+    searchCacheMaxEntries: Number(process.env.SEARCH_CACHE_MAX_ENTRIES || 1000),
+    categoriesCacheTtlMs: Number(process.env.CATEGORIES_CACHE_TTL_MS || 300000),
+    categoriesCacheMaxEntries: Number(process.env.CATEGORIES_CACHE_MAX_ENTRIES || 100),
+    indexStatsCacheTtlMs: Number(process.env.INDEX_STATS_CACHE_TTL_MS || 30000),
+    indexStatsCacheMaxEntries: Number(process.env.INDEX_STATS_CACHE_MAX_ENTRIES || 20),
 
     // Input limits
     maxTextLength: Number(process.env.MAX_TEXT_LENGTH || 256),
@@ -56,6 +64,8 @@ function loadConfig(overrides = {}) {
 
     // Config file paths
     categoriesConfigPath: process.env.CATEGORIES_CONFIG_PATH || '',
+    categoryTaxonomyPath: process.env.CATEGORY_TAXONOMY_PATH || '',
+    categoryLabelsPath: process.env.CATEGORY_LABELS_PATH || '',
     rankingConfigPath: process.env.RANKING_CONFIG_PATH || '',
     synonymsDir: process.env.SYNONYMS_DIR || '',
 

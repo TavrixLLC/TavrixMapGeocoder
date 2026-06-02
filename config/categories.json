@@ -2,14 +2,14 @@
   {
     "id": "restaurant",
     "names": { "en": "Restaurant", "ar": "مطعم", "ku": "چێشتخانە" },
-    "aliases": ["food", "dining", "اكل", "أكل", "مطاعم"],
+    "aliases": ["food", "dining", "اكل", "أكل", "مطعم", "مطاعم"],
     "osm_tags": { "amenity": "restaurant" },
     "parent": "food"
   },
   {
     "id": "cafe",
     "names": { "en": "Cafe", "ar": "مقهى", "ku": "قاوەخانە" },
-    "aliases": ["coffee", "كوفي", "كافيه", "coffeeshop"],
+    "aliases": ["coffee", "كوفي", "كافيه", "كافي", "مقهى", "coffeeshop"],
     "osm_tags": { "amenity": "cafe" },
     "parent": "food"
   },
@@ -23,7 +23,7 @@
   {
     "id": "pharmacy",
     "names": { "en": "Pharmacy", "ar": "صيدلية", "ku": "دەرمانخانە" },
-    "aliases": ["drugstore", "صيدليه", "medicine"],
+    "aliases": ["drugstore", "صيدليه", "صيدليات", "medicine"],
     "osm_tags": { "amenity": "pharmacy" },
     "parent": "health"
   },
@@ -58,7 +58,7 @@
   {
     "id": "fuel",
     "names": { "en": "Gas Station", "ar": "محطة وقود" },
-    "aliases": ["gas", "petrol", "بنزين", "gas_station", "fuel_station"],
+    "aliases": ["gas", "petrol", "بنزين", "محطة بنزين", "وقود", "gas_station", "fuel_station"],
     "osm_tags": { "amenity": "fuel" },
     "parent": "transport"
   },
@@ -128,9 +128,16 @@
   {
     "id": "bakery",
     "names": { "en": "Bakery", "ar": "مخبز" },
-    "aliases": ["bread", "خبز", "فرن"],
+    "aliases": ["bread", "خبز", "فرن", "مخبز", "صمون"],
     "osm_tags": { "shop": "bakery" },
     "parent": "food"
+  },
+  {
+    "id": "hairdresser",
+    "names": { "en": "Hairdresser", "ar": "حلاق" },
+    "aliases": ["barber", "salon", "حلاق", "صالون"],
+    "osm_tags": { "shop": "hairdresser" },
+    "parent": "shopping"
   },
   {
     "id": "police",

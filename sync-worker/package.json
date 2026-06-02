@@ -10,6 +10,8 @@
     "sync:source": "node src/index.js sync:source",
     "reindex:all": "node src/index.js reindex:all",
     "reindex:source": "node src/index.js reindex:source",
+    "rollback:aliases": "node src/index.js rollback:aliases",
+    "state:migrate-json-to-sqlite": "node src/index.js state:migrate-json-to-sqlite",
     "health": "node src/index.js health",
     "test": "node --test"
   },
@@ -24,6 +26,6 @@
     "prom-client": "^15.1.3"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   }
 }

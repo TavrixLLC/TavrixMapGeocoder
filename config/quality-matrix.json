@@ -1,0 +1,48 @@
+{
+  "base_url": "http://localhost:4000",
+  "output_dir": "reports",
+  "warmup_rounds": 1,
+  "repeats": 3,
+  "thresholds": {
+    "search_max_p95_ms": 250,
+    "autocomplete_max_p95_ms": 150,
+    "index_stats_max_ms": 500,
+    "max_missing_country_a_ratio": 0.05,
+    "min_results_per_query": 1
+  },
+  "search": {
+    "size": 5
+  },
+  "autocomplete": {
+    "enabled": true,
+    "size": 5
+  },
+  "countries": [
+    {
+      "code": "IQ",
+      "name": "Iraq",
+      "enabled": true,
+      "focus": { "lat": 33.3152, "lon": 44.3661 },
+      "cities": [
+        { "name": "Baghdad", "focus": { "lat": 33.3152, "lon": 44.3661 } }
+      ],
+      "queries": [
+        { "text": "restaurant", "category": "restaurant" },
+        { "text": "\u0645\u0637\u0639\u0645", "category": "restaurant" },
+        { "text": "pharmacy", "category": "pharmacy" },
+        { "text": "\u0635\u064a\u062f\u0644\u064a\u0629", "category": "pharmacy" },
+        { "text": "cafe", "category": "cafe" },
+        { "text": "\u0645\u0642\u0647\u0649", "category": "cafe" },
+        { "text": "hotel", "category": "hotel" },
+        { "text": "\u0641\u0646\u062f\u0642", "category": "hotel" },
+        { "text": "\u0645\u062d\u0637\u0629 \u0628\u0646\u0632\u064a\u0646", "category": "fuel" }
+      ],
+      "autocomplete_queries": [
+        { "text": "rest" },
+        { "text": "\u0645\u0637" },
+        { "text": "pharm" },
+        { "text": "\u0635\u064a\u062f" }
+      ]
+    }
+  ]
+}

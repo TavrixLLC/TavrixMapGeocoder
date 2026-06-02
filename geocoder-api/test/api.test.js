@@ -12,6 +12,7 @@ const sampleHit = {
   _score: 7.5,
   _source: {
     source: 'osm_postgis',
+    source_config: 'osm_pois',
     layer: 'venue',
     source_id: '13189798864',
     name: {
@@ -25,6 +26,12 @@ const sampleHit = {
     routable_point_type: 'centroid_fallback',
     routable_point_source: 'center_point',
     category: ['restaurant'],
+    categories: ['restaurant'],
+    category_ids: ['restaurant'],
+    category_aliases: ['restaurant', 'مطعم', 'food'],
+    category_terms: ['restaurant', 'مطعم', 'food'],
+    intent_groups: ['food'],
+    source_tags: { amenity: 'restaurant' },
     address_parts: { street: 'Main Street', number: '42' },
     parent: {
       country: ['Iraq'],
@@ -32,6 +39,11 @@ const sampleHit = {
       region: ['Karbala'],
       locality: ['Karbala City']
     },
+    country: 'Iraq',
+    country_a: 'IQ',
+    region: 'Karbala',
+    locality: 'Karbala City',
+    admin_enrichment_status: 'enriched',
     addendum: { postgis: JSON.stringify({
       phone: '+964-770-1234567',
       website: 'https://example.test',
@@ -40,6 +52,7 @@ const sampleHit = {
       amenity: 'restaurant'
     }) },
     popularity: 50,
+    importance: 0.9,
     updated_at: '2026-05-30T18:00:00.000Z'
   }
 };
@@ -49,12 +62,22 @@ const sampleHit2 = {
   _score: 5,
   _source: {
     source: 'osm_postgis',
+    source_config: 'osm_pois',
     layer: 'venue',
     source_id: '99999',
     name: { default: 'Test Cafe', ar: 'مقهى اختبار', en: 'Test Cafe' },
     center_point: { lat: 33.3152, lon: 44.3661 },
     category: ['cafe'],
-    parent: { country: ['Iraq'], locality: ['Baghdad'] }
+    category_ids: ['cafe'],
+    category_aliases: ['cafe', 'مقهى'],
+    category_terms: ['cafe', 'مقهى', 'coffee'],
+    intent_groups: ['food'],
+    source_tags: { amenity: 'cafe' },
+    parent: { country: ['Iraq'], country_a: ['IQ'], locality: ['Baghdad'] },
+    country: 'Iraq',
+    country_a: 'IQ',
+    locality: 'Baghdad',
+    admin_enrichment_status: 'enriched'
   }
 };
 
@@ -63,12 +86,17 @@ const streetHit = {
   _score: 3,
   _source: {
     source: 'osm_postgis',
+    source_config: 'streets',
     layer: 'street',
     source_id: '1001',
     name: { default: 'شارع الكرادة', ar: 'شارع الكرادة', en: 'Karrada Street' },
     center_point: { lat: 33.2950, lon: 44.3971 },
     category: ['residential'],
-    parent: { country: ['Iraq'], locality: ['Baghdad'] }
+    parent: { country: ['Iraq'], country_a: ['IQ'], locality: ['Baghdad'] },
+    country: 'Iraq',
+    country_a: 'IQ',
+    locality: 'Baghdad',
+    admin_enrichment_status: 'enriched'
   }
 };
 
@@ -104,6 +132,13 @@ function makeApp(overrides = {}) {
   const esService = {
     async getAliasTargets() { return ['pelias_v1']; },
     async count() { return 10; },
+    async clusterHealth() {
+      return {
+        status: 'green',
+        active_shards_percent_as_number: 100,
+        unassigned_shards: 0
+      };
+    },
     async findDocumentByFeature() { return { id: sampleHit._id, source: sampleHit._source, score: sampleHit._score }; },
     async search(body) {
       if (body.aggs && body.aggs.categories) {
@@ -144,13 +179,28 @@ function makeApp(overrides = {}) {
     async stats() {
       return {
         documents: { venue: 5, address: 0, street: 10, locality: 3, region: 2 },
+        documents_missing_country_a: { venue: 1 },
+        documents_missing_country_a_by_source_config: { osm_pois: 1 },
+        documents_by_country_a: { IQ: 19 },
+        source_config_documents: { osm_pois: 5, streets: 10, places: 3, admin_boundaries: 2 },
+        documents_by_source_config: { osm_pois: 5, streets: 10, places: 3, admin_boundaries: 2 },
+        admin_enrichment_missing_country_reasons: { no_covering_admin_boundary: 1 },
+        admin_enrichment_missing_country_statuses: { missing_country: 1 },
+        missing_country_a_samples: [{
+          gid: 'osm_postgis:venue:missing-1',
+          source_config: 'osm_pois',
+          layer: 'venue',
+          admin_enrichment_status: 'missing_country',
+          admin_enrichment_reason: 'no_covering_admin_boundary'
+        }],
         sources: {
-          osm_postgis: {
-            documents: 20,
+          osm_pois: {
+            documents: 5,
             last_success_at: '2026-05-30T18:00:00.000Z',
             last_started_at: '2026-05-30T17:59:00.000Z',
             last_finished_at: '2026-05-30T18:00:00.000Z',
             staleness_seconds: 60,
+            freshness_threshold_seconds: 43200,
             last_indexed_count: 100,
             last_deleted_count: 2,
             last_failed_count: 0
@@ -160,7 +210,7 @@ function makeApp(overrides = {}) {
         index_name: 'pelias_v1',
         alias: 'pelias',
         last_indexed_at: '2026-05-30T18:00:00.000Z',
-        health: { elasticsearch: true, alias_exists: true, has_documents: true, worker_stale: false }
+        health: { elasticsearch: true, alias_exists: true, has_documents: true, worker_stale: false, stale_sources: [] }
       };
     },
     async categoryCounts() {
@@ -174,6 +224,16 @@ function makeApp(overrides = {}) {
             last_indexed_count: 100
           }
         }
+      };
+    },
+    async readSyncConfig() {
+      return {
+        sources: [
+          { name: 'osm_pois', stale_after_seconds: 43200 },
+          { name: 'streets', stale_after_seconds: 172800 },
+          { name: 'places', stale_after_seconds: 86400 },
+          { name: 'admin_boundaries', stale_after_seconds: 604800 }
+        ]
       };
     },
     ...overrides.esService
@@ -200,6 +260,7 @@ function makeApp(overrides = {}) {
     logSearchText: false,
     workerStatePath: '/tmp/nonexistent-state.json',
     workerStaleThresholdSeconds: 86400,
+    esExpectedReplicas: 0,
     esRequestTimeoutMs: 3000,
     apiRequestTimeoutMs: 5000,
     ...overrides.config
@@ -551,6 +612,60 @@ test('place: missing ids returns 400', async () => {
   await request(makeApp()).get('/v1/place').expect(400);
 });
 
+test('direct_es: place resolves Pelias-compatible gid without upstream Pelias', async () => {
+  const app = makeApp({
+    queryMode: 'direct_es',
+    deps: {
+      peliasClient: {
+        async get() {
+          throw new Error('upstream Pelias should not be called');
+        }
+      }
+    }
+  });
+
+  const res = await request(app)
+    .get('/v1/place?ids=osm_postgis:venue:13189798864')
+    .expect(200);
+
+  assert.equal(res.body.type, 'FeatureCollection');
+  assert.equal(res.body.features[0].properties.gid, 'osm_postgis:venue:13189798864');
+});
+
+test('direct_es: public geocoding endpoints use Elasticsearch without upstream Pelias', async () => {
+  const esBodies = [];
+  const app = makeApp({
+    queryMode: 'direct_es',
+    deps: {
+      peliasClient: {
+        async get() {
+          throw new Error('upstream Pelias should not be called');
+        }
+      }
+    },
+    esService: {
+      async search(body) {
+        esBodies.push(body);
+        return {
+          took: 1,
+          hits: { hits: [sampleHit] },
+          aggregations: {
+            layers: { buckets: [{ key: 'venue', doc_count: 1 }] },
+            sources: { buckets: [{ key: 'osm_postgis', doc_count: 1 }] }
+          }
+        };
+      }
+    }
+  });
+
+  await request(app).get('/v1/search?text=restaurant').expect(200);
+  await request(app).get('/v1/autocomplete?text=rest').expect(200);
+  await request(app).get('/v1/reverse?point.lat=33.3152&point.lon=44.3661').expect(200);
+  await request(app).get('/v1/place?ids=osm_postgis:venue:13189798864').expect(200);
+
+  assert.equal(esBodies.length, 4);
+});
+
 // ═══════════════════════════════════════════════════════════════
 // BATCH TESTS
 // ═══════════════════════════════════════════════════════════════
@@ -797,8 +912,13 @@ test('explain: with Bearer token works', async () => {
     .set('Authorization', 'Bearer test-internal-token')
     .expect(200);
   assert.ok(res.body.generated_query);
+  assert.ok(res.body.generated_query.function_score);
   assert.ok(res.body.elastic_took_ms != null);
+  assert.equal(res.body.ranking_formula.formula, 'final_score = text_relevance + proximity_score + popularity_importance + category_boost + exact_name_boost + layer_boost');
   assert.ok(res.body.normalization);
+  assert.ok(res.body.category_resolution);
+  assert.ok(res.body.category_resolution.matched_category_ids.includes('restaurant'));
+  assert.ok(Array.isArray(res.body.scoring_components));
 });
 
 test('explain: with x-internal-token works', async () => {
@@ -807,6 +927,21 @@ test('explain: with x-internal-token works', async () => {
     .set('x-internal-token', 'test-internal-token')
     .expect(200);
   assert.ok(res.body.generated_query);
+});
+
+test('explain: shows boundary country filter behavior and sample admin fields', async () => {
+  const res = await request(makeApp())
+    .get('/v1/debug/explain?text=restaurant&boundary.country=iq')
+    .set('x-internal-token', 'test-internal-token')
+    .expect(200);
+
+  assert.equal(res.body.boundary_country, 'IQ');
+  assert.ok(Array.isArray(res.body.applied_filters));
+  assert.ok(res.body.raw_hit_count_before_country_filter > 0);
+  assert.ok(res.body.hit_count_after_country_filter > 0);
+  assert.equal(res.body.top_results[0].country_a, 'IQ');
+  assert.equal(res.body.top_results[0].source_config, 'osm_pois');
+  assert.equal(res.body.top_results[0].admin_enrichment_status, 'enriched');
 });
 
 test('explain: disabled returns 404', async () => {
@@ -831,7 +966,7 @@ test('index stats: returns document counts', async () => {
 
 test('index stats: includes source freshness', async () => {
   const res = await request(makeApp()).get('/v1/index/stats').expect(200);
-  const source = res.body.sources.osm_postgis;
+  const source = res.body.sources.osm_pois;
   assert.ok(source);
   assert.equal(source.last_success_at, '2026-05-30T18:00:00.000Z');
   assert.equal(source.last_started_at, '2026-05-30T17:59:00.000Z');
@@ -839,6 +974,14 @@ test('index stats: includes source freshness', async () => {
   assert.equal(source.last_indexed_count, 100);
   assert.equal(source.last_deleted_count, 2);
   assert.equal(source.last_failed_count, 0);
+  assert.equal(source.documents, 5);
+  assert.equal(res.body.source_config_documents.osm_pois, 5);
+  assert.equal(res.body.documents_by_source_config.osm_pois, 5);
+  assert.equal(res.body.documents_missing_country_a.venue, 1);
+  assert.equal(res.body.documents_missing_country_a_by_source_config.osm_pois, 1);
+  assert.equal(res.body.documents_by_country_a.IQ, 19);
+  assert.equal(res.body.admin_enrichment_missing_country_reasons.no_covering_admin_boundary, 1);
+  assert.equal(res.body.missing_country_a_samples[0].gid, 'osm_postgis:venue:missing-1');
   assert.equal(res.body.health.worker_stale, false);
 });
 
@@ -858,6 +1001,8 @@ test('health/ready: returns ok when ES is up', async () => {
   assert.equal(res.body.checks.elasticsearch, true);
   assert.equal(res.body.checks.alias_exists, true);
   assert.equal(res.body.checks.index_has_documents, true);
+  assert.equal(res.body.checks.cluster_not_red, true);
+  assert.equal(res.body.cluster_health.status, 'green');
 });
 
 test('health/ready: returns degraded when ES is down', async () => {
@@ -869,6 +1014,147 @@ test('health/ready: returns degraded when ES is down', async () => {
   const res = await request(app).get('/health/ready').expect(503);
   assert.equal(res.body.status, 'degraded');
   assert.equal(res.body.error.code, 'dependency_unavailable');
+});
+
+test('health/ready: returns degraded when alias is missing', async () => {
+  const app = makeApp({
+    esService: {
+      async getAliasTargets() { return []; }
+    }
+  });
+
+  const res = await request(app).get('/health/ready').expect(503);
+  assert.equal(res.body.checks.alias_exists, false);
+});
+
+test('health/ready: returns degraded when index is empty', async () => {
+  const app = makeApp({
+    esService: {
+      async count() { return 0; }
+    }
+  });
+
+  const res = await request(app).get('/health/ready').expect(503);
+  assert.equal(res.body.checks.index_has_documents, false);
+  assert.equal(res.body.documents, 0);
+});
+
+test('health/ready: fails on red Elasticsearch cluster health', async () => {
+  const app = makeApp({
+    esService: {
+      async clusterHealth() {
+        return { status: 'red', active_shards_percent_as_number: 50, unassigned_shards: 2 };
+      }
+    }
+  });
+
+  const res = await request(app).get('/health/ready').expect(503);
+  assert.equal(res.body.checks.cluster_not_red, false);
+  assert.equal(res.body.cluster_health.status, 'red');
+});
+
+test('health/ready: degrades on yellow cluster health when replicas are expected', async () => {
+  const app = makeApp({
+    config: { esExpectedReplicas: 1 },
+    esService: {
+      async clusterHealth() {
+        return { status: 'yellow', active_shards_percent_as_number: 80, unassigned_shards: 1 };
+      }
+    }
+  });
+
+  const res = await request(app).get('/health/ready').expect(503);
+  assert.equal(res.body.checks.cluster_replicas_satisfied, false);
+  assert.deepEqual(res.body.warnings, ['elasticsearch_yellow_expected_replicas']);
+});
+
+test('health/ready: allows yellow cluster health when replicas are not expected', async () => {
+  const app = makeApp({
+    config: { esExpectedReplicas: 0 },
+    esService: {
+      async clusterHealth() {
+        return { status: 'yellow', active_shards_percent_as_number: 100, unassigned_shards: 0 };
+      }
+    }
+  });
+
+  const res = await request(app).get('/health/ready').expect(200);
+  assert.equal(res.body.checks.cluster_replicas_satisfied, true);
+});
+
+test('health/ready: returns degraded when source document count drop was detected', async () => {
+  const app = makeApp({
+    esService: {
+      async readWorkerState() {
+        return {
+          sources: {
+            osm_pois: {
+              last_success_timestamp: new Date().toISOString(),
+              last_error: { code: 'unexpected_source_drop' }
+            }
+          }
+        };
+      }
+    }
+  });
+
+  const res = await request(app).get('/health/ready').expect(503);
+  assert.equal(res.body.checks.source_counts_ok, false);
+});
+
+test('health/ready: returns degraded when any source sync is stale', async () => {
+  const app = makeApp({
+    esService: {
+      async readWorkerState() {
+        return {
+          sources: {
+            osm_pois: {
+              last_success_timestamp: new Date().toISOString()
+            },
+            streets: {
+              last_success_timestamp: new Date(Date.now() - 48 * 3600 * 1000).toISOString()
+            }
+          }
+        };
+      },
+      async readSyncConfig() {
+        return null;
+      }
+    }
+  });
+
+  const res = await request(app).get('/health/ready').expect(503);
+  assert.equal(res.body.checks.worker_stale, true);
+  assert.equal(res.body.stale_sources[0].source, 'streets');
+  assert.equal(typeof res.body.stale_sources[0].staleness_seconds, 'number');
+  assert.equal(res.body.stale_sources[0].freshness_threshold_seconds, 86400);
+});
+
+test('health/ready: uses source-specific stale thresholds from sync config', async () => {
+  const app = makeApp({
+    esService: {
+      async readWorkerState() {
+        return {
+          sources: {
+            admin_boundaries: {
+              last_success_timestamp: new Date(Date.now() - 48 * 3600 * 1000).toISOString()
+            }
+          }
+        };
+      },
+      async readSyncConfig() {
+        return {
+          sources: [
+            { name: 'admin_boundaries', stale_after_seconds: 604800 }
+          ]
+        };
+      }
+    }
+  });
+
+  const res = await request(app).get('/health/ready').expect(200);
+  assert.equal(res.body.checks.worker_stale, false);
+  assert.deepEqual(res.body.stale_sources, []);
 });
 
 test('health/dependencies: returns status', async () => {
@@ -917,10 +1203,43 @@ test('direct_es: search returns features', async () => {
   assert.ok(res.body.features[0].properties.gid);
 });
 
+test('direct_es: boundary.country=IQ keeps enriched restaurant results', async () => {
+  const app = makeApp({ queryMode: 'direct_es' });
+  const res = await request(app)
+    .get('/v1/search?text=restaurant&boundary.country=IQ')
+    .expect(200);
+  assert.ok(res.body.features.length > 0);
+  assert.equal(res.body.features[0].properties.country_a, 'IQ');
+  assert.ok(res.body.features[0].properties.country);
+});
+
+test('direct_es: boundary.country=iq is normalized and keeps results', async () => {
+  const app = makeApp({ queryMode: 'direct_es' });
+  const res = await request(app)
+    .get('/v1/search?text=restaurant&boundary.country=iq')
+    .expect(200);
+  assert.ok(res.body.features.length > 0);
+  assert.equal(res.body.features[0].properties.country_a, 'IQ');
+});
+
+test('direct_es: Arabic category text matches restaurant POIs', async () => {
+  const app = makeApp({ queryMode: 'direct_es' });
+  const res = await request(app)
+    .get('/v1/search?text=مطعم&lang=ar')
+    .expect(200);
+  assert.ok(res.body.features.length > 0);
+});
+
 test('direct_es: autocomplete returns features', async () => {
   const app = makeApp({ queryMode: 'direct_es' });
   const res = await request(app).get('/v1/autocomplete?text=rest').expect(200);
   assert.equal(res.body.type, 'FeatureCollection');
+});
+
+test('direct_es: autocomplete restaurant returns features', async () => {
+  const app = makeApp({ queryMode: 'direct_es' });
+  const res = await request(app).get('/v1/autocomplete?text=restaurant').expect(200);
+  assert.ok(res.body.features.length > 0);
 });
 
 test('direct_es: reverse returns features', async () => {

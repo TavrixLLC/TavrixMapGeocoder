@@ -1,0 +1,171 @@
+services:
+  elasticsearch:
+    image: ${ELASTICSEARCH_IMAGE:-pelias/elasticsearch:8.12.2-beta}
+    container_name: tavrixmap-geocoder-elasticsearch-prod
+    restart: unless-stopped
+    environment:
+      discovery.type: ${ES_DISCOVERY_TYPE:-single-node}
+      cluster.name: ${ES_CLUSTER_NAME:-tavrixmap-geocoder-prod}
+      node.name: ${ES_NODE_NAME:-es-1}
+      ES_JAVA_OPTS: -Xms${ES_HEAP_SIZE:-4g} -Xmx${ES_HEAP_SIZE:-4g}
+      xpack.security.enabled: ${ES_SECURITY_ENABLED:-false}
+      path.repo: /usr/share/elasticsearch/snapshots
+      action.destructive_requires_name: "true"
+      cluster.routing.allocation.disk.watermark.low: ${ES_DISK_WATERMARK_LOW:-85%}
+      cluster.routing.allocation.disk.watermark.high: ${ES_DISK_WATERMARK_HIGH:-90%}
+      cluster.routing.allocation.disk.watermark.flood_stage: ${ES_DISK_WATERMARK_FLOOD_STAGE:-95%}
+    expose:
+      - "9200"
+      - "9300"
+    volumes:
+      - pelias_elasticsearch_prod_data:/usr/share/elasticsearch/data
+      - pelias_elasticsearch_snapshots:/usr/share/elasticsearch/snapshots
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health | grep -vq '\"status\":\"red\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  pelias-schema:
+    image: pelias/schema:master
+    container_name: tavrixmap-geocoder-schema-prod
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - >
+        node -e "const http=require('http');const req=http.request({host:'elasticsearch',port:9200,path:'/pelias_v1',method:'HEAD'},res=>process.exit(res.statusCode===200?0:2));req.on('error',()=>process.exit(2));req.end();"
+        || ./bin/create_index
+    environment:
+      PELIAS_CONFIG: /code/pelias.json
+    volumes:
+      - ./pelias-schema-init.json:/code/pelias.json:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  libpostal:
+    image: pelias/libpostal-service:latest
+    container_name: tavrixmap-geocoder-libpostal-prod
+    restart: unless-stopped
+    expose:
+      - "4400"
+
+  pelias-api:
+    image: pelias/api:master
+    container_name: tavrixmap-geocoder-pelias-api-prod
+    restart: unless-stopped
+    environment:
+      PELIAS_CONFIG: /code/pelias.json
+      PORT: 4000
+    expose:
+      - "4000"
+    volumes:
+      - ./pelias.json:/code/pelias.json:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      libpostal:
+        condition: service_started
+      postgis-readonly-sync-worker:
+        condition: service_started
+
+  geocoder-api:
+    build:
+      context: ./geocoder-api
+      dockerfile: Dockerfile
+    container_name: tavrixmap-geocoder-api-prod
+    restart: unless-stopped
+    environment:
+      PORT: 4000
+      PELIAS_API_URL: http://pelias-api:4000
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      PELIAS_INDEX_ALIAS: ${PELIAS_INDEX_ALIAS:-pelias}
+      ES_EXPECTED_REPLICAS: ${ES_EXPECTED_REPLICAS:-0}
+      GEOCODER_QUERY_MODE: ${GEOCODER_QUERY_MODE:-hybrid}
+      MAX_BATCH_SIZE: ${MAX_BATCH_SIZE:-100}
+      MAX_SIZE: ${MAX_SIZE:-40}
+      DEFAULT_SIZE: ${DEFAULT_SIZE:-10}
+      MAX_TEXT_LENGTH: ${MAX_TEXT_LENGTH:-256}
+      MAX_STRUCTURED_FIELD_LENGTH: ${MAX_STRUCTURED_FIELD_LENGTH:-128}
+      MAX_NEARBY_RADIUS_METERS: ${MAX_NEARBY_RADIUS_METERS:-50000}
+      DEFAULT_NEARBY_RADIUS_METERS: ${DEFAULT_NEARBY_RADIUS_METERS:-1000}
+      DEFAULT_LANG: ${DEFAULT_LANG:-ar}
+      DEFAULT_FALLBACK_LANG: ${DEFAULT_FALLBACK_LANG:-en}
+      SUPPORTED_LANGUAGES: ${SUPPORTED_LANGUAGES:-ar,en,ku,ckb}
+      ES_REQUEST_TIMEOUT_MS: ${ES_REQUEST_TIMEOUT_MS:-3000}
+      API_REQUEST_TIMEOUT_MS: ${API_REQUEST_TIMEOUT_MS:-5000}
+      WORKER_STATE_PATH: /app/state/sync-state.json
+      WORKER_STALE_THRESHOLD_SECONDS: ${WORKER_STALE_THRESHOLD_SECONDS:-86400}
+      WORKER_INTERNAL_TOKEN: ${WORKER_INTERNAL_TOKEN:-}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-}
+      DEBUG_ENDPOINTS_ENABLED: ${DEBUG_ENDPOINTS_ENABLED:-false}
+      EXPLAIN_ENDPOINT_ENABLED: ${EXPLAIN_ENDPOINT_ENABLED:-false}
+      LOG_SEARCH_TEXT: ${LOG_SEARCH_TEXT:-false}
+      SYNC_CONFIG_PATH: /app/config/pelias-postgis-readonly-sync.json
+      CATEGORIES_CONFIG_PATH: ${CATEGORIES_CONFIG_PATH:-}
+      CATEGORY_TAXONOMY_PATH: ${CATEGORY_TAXONOMY_PATH:-/app/config/category-taxonomy.json}
+      CATEGORY_LABELS_PATH: ${CATEGORY_LABELS_PATH:-/app/generated/category-labels.wikidata.json}
+      RANKING_CONFIG_PATH: ${RANKING_CONFIG_PATH:-}
+      SYNONYMS_DIR: ${SYNONYMS_DIR:-}
+    ports:
+      - "${PELIAS_API_PORT:-4000}:4000"
+    volumes:
+      - ./config:/app/config:ro
+      - ./generated:/app/generated:ro
+      - geocoder_state:/app/state:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      pelias-api:
+        condition: service_started
+
+  postgis-readonly-sync-worker:
+    build:
+      context: ./sync-worker
+      dockerfile: Dockerfile
+    container_name: tavrixmap-geocoder-sync-worker-prod
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      PELIAS_INDEX_SHARDS: ${PELIAS_INDEX_SHARDS:-3}
+      PELIAS_INDEX_REPLICAS: ${PELIAS_INDEX_REPLICAS:-0}
+      SYNC_CONFIG_PATH: /app/config/pelias-postgis-readonly-sync.json
+      SYNC_STATE_BACKEND: sqlite
+      SYNC_STATE_PATH: /app/state/sync-state.sqlite
+      SYNC_STATE_SNAPSHOT_PATH: /app/state/sync-state.json
+      HEALTH_PORT: 9090
+      WORKER_INTERNAL_TOKEN: ${WORKER_INTERNAL_TOKEN}
+    expose:
+      - "9090"
+    volumes:
+      - ./config:/app/config:ro
+      - geocoder_state:/app/state
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      pelias-schema:
+        condition: service_completed_successfully
+    networks:
+      - default
+      - postgis_external
+
+networks:
+  postgis_external:
+    external: true
+    name: ${POSTGIS_DOCKER_NETWORK:-map-data-pipeline_map-data}
+
+volumes:
+  pelias_elasticsearch_prod_data:
+  pelias_elasticsearch_snapshots:
+  geocoder_state:

@@ -1,6 +1,6 @@
 'use strict';
 
-const { enrichPOIFields, extractHierarchy, extractAddressFields, buildRoutablePoint } = require('./feature-builder');
+const { enrichPOIFields, extractHierarchy, extractTopLevelHierarchy, extractAddressFields, buildRoutablePoint } = require('./feature-builder');
 
 /**
  * Enriches a Pelias FeatureCollection response with additional data
@@ -22,6 +22,10 @@ async function enrichFeatureCollection(collection, esService, query, config = {}
     if (doc.parent) {
       extractHierarchy(feature.properties, doc.parent);
     }
+    extractTopLevelHierarchy(feature.properties, doc);
+    if (doc.admin_enrichment_status) {
+      feature.properties.admin_enrichment_status = doc.admin_enrichment_status;
+    }
 
     // ── Address parts ──────────────────────────────────────────
     if (doc.address_parts && !feature.properties.address_parts) {
@@ -33,7 +37,7 @@ async function enrichFeatureCollection(collection, esService, query, config = {}
     if (Array.isArray(doc.category) && doc.category.length > 0) {
       feature.properties.category = feature.properties.category || doc.category[0];
       feature.properties.categories = feature.properties.categories || doc.category;
-      feature.properties.category_ids = feature.properties.category_ids || doc.category;
+      feature.properties.category_ids = feature.properties.category_ids || doc.category_ids || doc.category;
     }
 
     if (doc.bearing != null && feature.properties.bearing == null) feature.properties.bearing = doc.bearing;
@@ -93,7 +97,9 @@ async function enrichFeatureCollection(collection, esService, query, config = {}
     if (responseMode === 'debug') {
       if (hit.score != null) feature.properties.relevance_score = hit.score;
       const addendum = parseAddendumSafe(doc.addendum);
-      if (addendum && addendum.postgis) {
+      if (doc.source_tags) {
+        feature.properties.source_tags = doc.source_tags;
+      } else if (addendum && addendum.postgis) {
         feature.properties.source_tags = addendum.postgis;
       }
     }

@@ -23,11 +23,16 @@ class PeliasDocumentBuilder {
     };
 
     const doc = {
+      id: String(domainDoc.recordId),
+      gid: `${domainDoc.source || 'unknown'}:${domainDoc.layer || 'venue'}:${domainDoc.recordId}`,
       source: domainDoc.source,
+      source_config: domainDoc.sourceName,
       layer: domainDoc.layer,
       source_id: domainDoc.recordId,
       name,
+      names: name,
       phrase,
+      label: buildLabel(domainDoc, name.default || domainDoc.name),
       center_point: centerPoint,
       updated_at: new Date().toISOString()
     };
@@ -59,14 +64,55 @@ class PeliasDocumentBuilder {
 
     if (Object.keys(domainDoc.parent).length > 0) {
       doc.parent = domainDoc.parent;
+      addTopLevelAdminFields(doc, domainDoc.parent);
+    }
+
+    for (const field of ['country', 'country_a', 'region', 'region_a', 'county', 'locality', 'localadmin', 'neighbourhood']) {
+      if (domainDoc[field] && !doc[field]) doc[field] = domainDoc[field];
+    }
+
+    if (domainDoc.admin_enrichment_status) {
+      doc.admin_enrichment_status = domainDoc.admin_enrichment_status;
+    }
+    if (domainDoc.admin_enrichment_reason) {
+      doc.admin_enrichment_reason = domainDoc.admin_enrichment_reason;
     }
 
     if (domainDoc.categories.length > 0) {
       doc.category = domainDoc.categories;
+      doc.categories = domainDoc.categories;
+    }
+
+    if (Array.isArray(domainDoc.categoryIds) && domainDoc.categoryIds.length > 0) {
+      doc.category_ids = domainDoc.categoryIds;
+    } else if (domainDoc.categories.length > 0) {
+      doc.category_ids = domainDoc.categories;
+    }
+
+    if (Array.isArray(domainDoc.categoryAliases) && domainDoc.categoryAliases.length > 0) {
+      doc.category_aliases = domainDoc.categoryAliases;
+    }
+
+    if (Array.isArray(domainDoc.categoryTerms) && domainDoc.categoryTerms.length > 0) {
+      doc.category_terms = unique(domainDoc.categoryTerms);
+    } else if (Array.isArray(domainDoc.categoryAliases) && domainDoc.categoryAliases.length > 0) {
+      doc.category_terms = unique(domainDoc.categoryAliases);
+    }
+
+    if (Array.isArray(domainDoc.intentGroups) && domainDoc.intentGroups.length > 0) {
+      doc.intent_groups = unique(domainDoc.intentGroups);
+    }
+
+    if (domainDoc.sourceTags && Object.keys(domainDoc.sourceTags).length > 0) {
+      doc.source_tags = domainDoc.sourceTags;
     }
 
     if (Number.isFinite(domainDoc.popularity)) {
       doc.popularity = domainDoc.popularity;
+    }
+
+    if (Number.isFinite(domainDoc.importance)) {
+      doc.importance = domainDoc.importance;
     }
 
     if (Object.keys(domainDoc.addendum).length > 0) {
@@ -77,6 +123,28 @@ class PeliasDocumentBuilder {
 
     return doc;
   }
+}
+
+function buildLabel(domainDoc, fallbackName) {
+  const parts = [fallbackName];
+  const parent = domainDoc.parent || {};
+  for (const key of ['neighbourhood', 'locality', 'region', 'country']) {
+    const values = Array.isArray(parent[key]) ? parent[key] : [];
+    const value = values.find(Boolean);
+    if (value && !parts.includes(value)) parts.push(value);
+  }
+  return parts.filter(Boolean).join(', ');
+}
+
+function addTopLevelAdminFields(doc, parent) {
+  for (const field of ['country', 'country_a', 'region', 'region_a', 'county', 'locality', 'localadmin', 'neighbourhood']) {
+    const value = Array.isArray(parent[field]) ? parent[field][0] : parent[field];
+    if (value) doc[field] = value;
+  }
+}
+
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
 }
 
 module.exports = PeliasDocumentBuilder;

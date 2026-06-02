@@ -13,7 +13,14 @@
   },
   "distance": {
     "enabled": true,
-    "decay_km": 5
+    "decay_km": 3,
+    "offset_km": 0.2,
+    "weight": 15,
+    "proximity_boosts": [
+      { "distance": "5km", "weight": 40 },
+      { "distance": "25km", "weight": 15 },
+      { "distance": "100km", "weight": 5 }
+    ]
   },
   "language": {
     "preferred_boost": 1.2,

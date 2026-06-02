@@ -75,20 +75,42 @@ services:
       dockerfile: Dockerfile
     container_name: tavrixmap-geocoder-api
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       PORT: 4000
       PELIAS_API_URL: http://pelias-api:4000
       ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
       PELIAS_INDEX_ALIAS: ${PELIAS_INDEX_ALIAS:-pelias}
+      GEOCODER_QUERY_MODE: ${GEOCODER_QUERY_MODE:-hybrid}
       MAX_BATCH_SIZE: ${MAX_BATCH_SIZE:-100}
+      MAX_SIZE: ${MAX_SIZE:-40}
+      DEFAULT_SIZE: ${DEFAULT_SIZE:-10}
+      MAX_TEXT_LENGTH: ${MAX_TEXT_LENGTH:-256}
+      MAX_STRUCTURED_FIELD_LENGTH: ${MAX_STRUCTURED_FIELD_LENGTH:-128}
+      MAX_NEARBY_RADIUS_METERS: ${MAX_NEARBY_RADIUS_METERS:-50000}
+      DEFAULT_NEARBY_RADIUS_METERS: ${DEFAULT_NEARBY_RADIUS_METERS:-1000}
+      DEFAULT_LANG: ${DEFAULT_LANG:-ar}
+      DEFAULT_FALLBACK_LANG: ${DEFAULT_FALLBACK_LANG:-en}
+      SUPPORTED_LANGUAGES: ${SUPPORTED_LANGUAGES:-ar,en,ku,ckb}
+      ES_REQUEST_TIMEOUT_MS: ${ES_REQUEST_TIMEOUT_MS:-3000}
+      API_REQUEST_TIMEOUT_MS: ${API_REQUEST_TIMEOUT_MS:-5000}
       WORKER_STATE_PATH: /app/state/sync-state.json
       WORKER_STALE_THRESHOLD_SECONDS: ${WORKER_STALE_THRESHOLD_SECONDS:-86400}
+      WORKER_INTERNAL_TOKEN: ${WORKER_INTERNAL_TOKEN:-}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-}
+      DEBUG_ENDPOINTS_ENABLED: ${DEBUG_ENDPOINTS_ENABLED:-true}
+      EXPLAIN_ENDPOINT_ENABLED: ${EXPLAIN_ENDPOINT_ENABLED:-true}
+      LOG_SEARCH_TEXT: ${LOG_SEARCH_TEXT:-false}
+      SYNC_CONFIG_PATH: /app/config/pelias-postgis-readonly-sync.json
+      CATEGORIES_CONFIG_PATH: ${CATEGORIES_CONFIG_PATH:-}
+      CATEGORY_TAXONOMY_PATH: ${CATEGORY_TAXONOMY_PATH:-/app/config/category-taxonomy.json}
+      CATEGORY_LABELS_PATH: ${CATEGORY_LABELS_PATH:-/app/generated/category-labels.wikidata.json}
+      RANKING_CONFIG_PATH: ${RANKING_CONFIG_PATH:-}
+      SYNONYMS_DIR: ${SYNONYMS_DIR:-}
     ports:
       - "${PELIAS_API_PORT:-4000}:4000"
     volumes:
       - ./config:/app/config:ro
+      - ./generated:/app/generated:ro
       - ./state:/app/state:ro
     depends_on:
       elasticsearch:
@@ -101,13 +123,13 @@ services:
     container_name: pelias-readonly-swagger-ui
     restart: unless-stopped
     environment:
-      SWAGGER_JSON: /docs/openapi.yaml
+      SWAGGER_JSON: /docs/openapi.json
       DOC_EXPANSION: list
       DEFAULT_MODELS_EXPAND_DEPTH: 1
     ports:
       - "${SWAGGER_PORT:-8088}:8080"
     volumes:
-      - ./docs/openapi.yaml:/docs/openapi.yaml:ro
+      - ./docs/openapi.json:/docs/openapi.json:ro
     depends_on:
       geocoder-api:
         condition: service_started
@@ -125,11 +147,13 @@ services:
     environment:
       ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
       SYNC_CONFIG_PATH: /app/config/pelias-postgis-readonly-sync.json
-      SYNC_STATE_PATH: /app/state/sync-state.json
+      SYNC_STATE_BACKEND: sqlite
+      SYNC_STATE_PATH: /app/state/sync-state.sqlite
+      SYNC_STATE_SNAPSHOT_PATH: /app/state/sync-state.json
       HEALTH_PORT: 9090
       WORKER_INTERNAL_TOKEN: ${WORKER_INTERNAL_TOKEN}
-    ports:
-      - "${WORKER_HEALTH_PORT:-9090}:9090"
+    expose:
+      - "9090"
     volumes:
       - ./config:/app/config:ro
       - ./state:/app/state

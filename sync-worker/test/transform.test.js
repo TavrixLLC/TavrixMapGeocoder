@@ -66,6 +66,64 @@ test('transform: extracts Kurdish name fields', () => {
   assert.equal(doc.names.ku, 'تێست');
 });
 
+test('transform: enriches admin hierarchy from mapped layer name', () => {
+  const transform = new Transform({}, logger);
+  const adminSource = {
+    ...sourceConfig,
+    name: 'admin_boundaries',
+    layer: 'locality',
+    layer_map: {
+      field: 'admin_level',
+      values: { '4': 'region', '8': 'locality', '10': 'neighbourhood' }
+    },
+    category_fields: ['boundary', 'admin_level'],
+    hierarchy_fields: {}
+  };
+  const row = {
+    osm_id: '10',
+    name: 'Baghdad',
+    boundary: 'administrative',
+    admin_level: '8',
+    _lat: 33.3,
+    _lon: 44.3
+  };
+
+  const doc = transform.toDomainDoc(adminSource, row);
+  assert.equal(doc.layer, 'locality');
+  assert.deepEqual(doc.parent.locality, ['Baghdad']);
+});
+
+test('transform: populates admin hierarchy fields when source columns are available', () => {
+  const transform = new Transform({}, logger);
+  const source = {
+    ...sourceConfig,
+    hierarchy_fields: {
+      country: 'country',
+      region: 'region',
+      locality: 'locality',
+      neighbourhood: 'neighbourhood'
+    }
+  };
+  const row = {
+    osm_id: '11',
+    name: 'Test Venue',
+    amenity: 'restaurant',
+    country: 'Iraq',
+    region: 'Baghdad Governorate',
+    locality: 'Baghdad',
+    neighbourhood: 'Karrada',
+    _lat: 33.3,
+    _lon: 44.3
+  };
+
+  const doc = transform.toDomainDoc(source, row);
+
+  assert.deepEqual(doc.parent.country, ['Iraq']);
+  assert.deepEqual(doc.parent.region, ['Baghdad Governorate']);
+  assert.deepEqual(doc.parent.locality, ['Baghdad']);
+  assert.deepEqual(doc.parent.neighbourhood, ['Karrada']);
+});
+
 test('transform: extracts categories from fields', () => {
   const transform = new Transform({}, logger);
   const row = {
@@ -77,6 +135,9 @@ test('transform: extracts categories from fields', () => {
   };
   const doc = transform.toDomainDoc(sourceConfig, row);
   assert.deepEqual(doc.categories, ['restaurant']);
+  assert.ok(doc.categoryTerms.includes('restaurant'));
+  assert.ok(doc.intentGroups.includes('food'));
+  assert.ok(doc.importance > 0);
 });
 
 test('transform: extracts addendum fields', () => {
@@ -159,4 +220,50 @@ test('builder: includes updated_at timestamp', () => {
   const doc = builder.build(domainDoc);
   assert.ok(doc.updated_at);
   assert.ok(new Date(doc.updated_at).getTime() > 0);
+});
+
+test('builder: includes source_config and admin enrichment fields', () => {
+  const builder = new PeliasDocumentBuilder();
+  const domainDoc = {
+    sourceName: 'osm_pois',
+    source: 'osm_postgis',
+    layer: 'venue',
+    recordId: '1',
+    name: 'Test',
+    names: { default: 'Test' },
+    lat: 33.3,
+    lon: 44.3,
+    categories: ['restaurant'],
+    categoryIds: ['restaurant'],
+    categoryAliases: ['restaurant', 'مطعم'],
+    categoryTerms: ['restaurant', 'مطعم', 'food'],
+    intentGroups: ['food'],
+    sourceTags: { amenity: 'restaurant' },
+    address: {},
+    parent: { country: ['Iraq'], country_a: ['IQ'], region: ['Baghdad'] },
+    addendum: {},
+    popularity: null,
+    importance: 0.9,
+    admin_enrichment_status: 'enriched',
+    admin_enrichment_reason: 'test_reason',
+    routable_point: null,
+    routable_points: [],
+    entrances: []
+  };
+
+  const doc = builder.build(domainDoc);
+
+  assert.equal(doc.source, 'osm_postgis');
+  assert.equal(doc.source_config, 'osm_pois');
+  assert.equal(doc.country_a, 'IQ');
+  assert.equal(doc.country, 'Iraq');
+  assert.equal(doc.admin_enrichment_status, 'enriched');
+  assert.equal(doc.admin_enrichment_reason, 'test_reason');
+  assert.deepEqual(doc.source_tags, { amenity: 'restaurant' });
+  assert.ok(doc.category_aliases.includes('مطعم'));
+  assert.equal(doc.id, '1');
+  assert.equal(doc.gid, 'osm_postgis:venue:1');
+  assert.ok(doc.category_terms.includes('food'));
+  assert.deepEqual(doc.intent_groups, ['food']);
+  assert.equal(doc.importance, 0.9);
 });

@@ -110,11 +110,37 @@ function normalizeArabic(value) {
   text = text.replace(/ی/g, 'ي');
   if (text !== beforePersian) rules.push('normalize_persian_chars');
 
+  // Normalize additional Kurdish kaf/yaa forms used in Sorani text.
+  const beforeKurdish = text;
+  text = text.replace(/ڪ/g, 'ك');
+  text = text.replace(/ێ/g, 'ي');
+  if (text !== beforeKurdish) rules.push('normalize_kurdish_kaf_yaa');
+
+  const beforeIraqiSpellings = text;
+  text = normalizeCommonIraqiSpellings(text);
+  if (text !== beforeIraqiSpellings) rules.push('normalize_iraqi_spellings');
+
   // Lowercase
   text = text.toLowerCase();
   rules.push('lowercase');
 
   return { text, rules };
+}
+
+function normalizeCommonIraqiSpellings(value) {
+  return value
+    .replace(/كراده/g, 'كرادة')
+    .replace(/حارثيه/g, 'حارثية')
+    .replace(/منطقه/g, 'منطقة')
+    .replace(/مدينه/g, 'مدينة')
+    .replace(/جامعه/g, 'جامعة')
+    .replace(/بصره/g, 'بصرة')
+    .replace(/ناصريه/g, 'ناصرية')
+    .replace(/ديوانيه/g, 'ديوانية')
+    .replace(/سماوه/g, 'سماوة')
+    .replace(/عماره/g, 'عمارة')
+    .replace(/كوفه/g, 'كوفة')
+    .replace(/حله/g, 'حلة');
 }
 
 /**
@@ -180,6 +206,7 @@ function containsArabic(value) {
 module.exports = {
   normalizeText,
   normalizeArabic,
+  normalizeCommonIraqiSpellings,
   normalizeDigits,
   normalizeArabicPunctuation,
   detectScript,

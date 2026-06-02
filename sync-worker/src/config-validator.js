@@ -12,11 +12,26 @@ const schema = {
       properties: {
         mode: { enum: ['scheduled', 'one-shot'] },
         dry_run: { type: 'boolean' },
-        health_port: { type: 'integer', minimum: 1 },
-        default_country: { type: 'string' },
-        default_country_a: { type: 'string' }
+        health_port: { type: 'integer', minimum: 1 }
       },
       additionalProperties: true
+    },
+    admin_enrichment: {
+      type: 'object',
+      properties: {
+        enabled: { type: 'boolean' },
+        boundaries_source: { type: 'string' },
+        country_admin_level: { type: 'integer', minimum: 1 },
+        region_admin_level: { type: 'integer', minimum: 1 },
+        county_admin_level: { type: 'integer', minimum: 1 },
+        locality_admin_level: { type: 'integer', minimum: 1 },
+        localadmin_admin_level: { type: 'integer', minimum: 1 },
+        neighbourhood_admin_level: { type: 'integer', minimum: 1 },
+        use_point_on_surface_for_polygons: { type: 'boolean' },
+        cache_enabled: { type: 'boolean' },
+        cache_grid_precision: { type: 'integer', minimum: 0, maximum: 8 }
+      },
+      additionalProperties: false
     },
     postgis: {
       type: 'object',
@@ -40,7 +55,9 @@ const schema = {
         max_retries: { type: 'integer', minimum: 0 },
         retry_base_delay_ms: { type: 'integer', minimum: 1 },
         max_bulk_docs: { type: 'integer', minimum: 1 },
-        max_bulk_bytes: { type: 'integer', minimum: 1024 }
+        max_bulk_bytes: { type: 'integer', minimum: 1024 },
+        number_of_shards: { type: 'integer', minimum: 1 },
+        number_of_replicas: { type: 'integer', minimum: 0 }
       },
       additionalProperties: false
     },
@@ -48,8 +65,14 @@ const schema = {
       type: 'object',
       required: ['path'],
       properties: {
+        backend: { enum: ['json', 'sqlite'] },
         path: { type: 'string' },
-        store_seen_ids: { type: 'boolean' }
+        sqlite_path: { type: 'string' },
+        json_path: { type: 'string' },
+        json_snapshot_path: { type: 'string' },
+        snapshot_path: { type: 'string' },
+        store_seen_ids: { type: 'boolean' },
+        failed_sample_path: { type: 'string' }
       },
       additionalProperties: false
     },
@@ -75,8 +98,13 @@ const schema = {
           addendum_fields: { type: 'array', items: { type: 'string' } },
           update_timestamp_field: { type: 'string' },
           schedule: { type: 'string' },
+          stale_after_seconds: { type: 'integer', minimum: 1 },
           batch_size: { type: 'integer', minimum: 1 },
           delete_strategy: { enum: ['none', 'source_diff'] },
+          drop_check_min_previous_count: { type: 'integer', minimum: 0 },
+          max_drop_ratio: { type: 'number', minimum: 0, maximum: 1 },
+          max_failed_ratio: { type: 'number', minimum: 0, maximum: 1 },
+          allow_count_drop: { type: 'boolean' },
           layer_map: {
             type: 'object',
             required: ['field', 'values'],
@@ -131,9 +159,17 @@ function validateReadOnlySql(source) {
     throw new Error(`Source ${source.name} SQL must be a single SELECT without semicolons`);
   }
 
+  if (/\bfor\s+(update|share|no\s+key\s+update|key\s+share)\b/i.test(sql)) {
+    throw new Error(`Source ${source.name} SQL contains a row-locking clause`);
+  }
+
   const blocked = /\b(insert|update|delete|merge|copy|create|alter|drop|truncate|grant|revoke|vacuum|analyze|listen|notify|call)\b/i;
   if (blocked.test(sql)) {
     throw new Error(`Source ${source.name} SQL contains a non-read-only keyword`);
+  }
+
+  if (/\bfrom\s+planet_osm_/i.test(sql) && !/\bwhere\b/i.test(sql)) {
+    throw new Error(`Source ${source.name} SQL must filter planet_osm rows with a WHERE clause`);
   }
 }
 

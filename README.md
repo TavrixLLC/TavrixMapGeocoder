@@ -26,7 +26,7 @@ The Pelias API queries Elasticsearch only. It does not query PostGIS at request 
 - `libpostal`: address parsing service for Pelias API.
 - `pelias-api`: internal Pelias API used by the gateway.
 - `geocoder-api`: public internal geocoder gateway on port `4000`.
-- `postgis-readonly-sync-worker`: scheduled reader/indexer with `/health` and `/metrics` on port `9090`.
+- `postgis-readonly-sync-worker`: scheduled reader/indexer with `/health` and `/metrics` on internal Docker port `9090`.
 - `swagger-ui`: OpenAPI UI on port `8099`.
 
 ## Current PostGIS Connection
@@ -37,11 +37,12 @@ The local `.env` is configured for the running database:
 POSTGIS_HOST=map-data-pipeline-postgis-1
 POSTGIS_PORT=5432
 POSTGIS_DB=gis
-POSTGIS_USER=postgres
+POSTGIS_USER=pelias_readonly
+POSTGIS_PASSWORD=change_me_readonly_password
 POSTGIS_DOCKER_NETWORK=map-data-pipeline_map-data
 ```
 
-Use a true read-only database role in production. The current credentials are accepted because you supplied them for the running local database, but the worker still forces read-only transactions.
+Use a true read-only database role. The worker also forces read-only sessions with `default_transaction_read_only=on` and `BEGIN READ ONLY`, and it refuses a PostGIS connection when the session is not read-only.
 
 ## Config-Driven Sources
 
@@ -130,13 +131,28 @@ It maps rows to Pelias-style documents with:
 - `popularity` where available.
 - `addendum.postgis` metadata.
 
-MVP enrichment is intentionally lightweight:
+Admin enrichment is world-ready and read-only:
 
 - normalize categories and address strings;
-- set default country/country code from config;
-- use hierarchy fields only if the query already returns them.
+- perform batched spatial joins against the configured `admin_boundaries` source;
+- never hardcode a country or country code;
+- keep the Pelias `source` field stable and add `source_config` for internal stats;
+- index documents with `admin_enrichment_status = "missing_country"` when country metadata is unavailable.
 
-For production, prefer cleaned tables or batched spatial joins for admin hierarchy instead of expensive per-row spatial lookups.
+PostGIS performance requirements for admin enrichment:
+
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS planet_osm_polygon_way_gist
+  ON planet_osm_polygon USING GIST (way);
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS planet_osm_point_way_gist
+  ON planet_osm_point USING GIST (way);
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS planet_osm_line_way_gist
+  ON planet_osm_line USING GIST (way);
+```
+
+Run those outside this project with a database owner role. The sync worker remains read-only and never creates indexes itself.
 
 ## Indexing Strategy
 
@@ -180,10 +196,10 @@ For very large datasets, replace JSON state with SQLite or an Elasticsearch meta
 
 ## Health And Metrics
 
-Endpoints:
+Worker HTTP endpoints are available only inside the Docker network:
 
-- `GET http://localhost:9090/health`
-- `GET http://localhost:9090/metrics`
+- `GET http://postgis-readonly-sync-worker:9090/health`
+- `GET http://postgis-readonly-sync-worker:9090/metrics`
 
 Metrics include:
 
@@ -262,8 +278,9 @@ curl -X POST "http://localhost:4000/v1/batch/search" \
 Protected worker controls:
 
 ```bash
-curl -X POST "http://localhost:9090/worker/sync/osm_pois" -H "Authorization: Bearer $WORKER_INTERNAL_TOKEN"
-curl "http://localhost:9090/worker/runs" -H "Authorization: Bearer $WORKER_INTERNAL_TOKEN"
+# From inside the Docker network only.
+curl -X POST "http://postgis-readonly-sync-worker:9090/worker/sync/osm_pois" -H "Authorization: Bearer $WORKER_INTERNAL_TOKEN"
+curl "http://postgis-readonly-sync-worker:9090/worker/runs" -H "Authorization: Bearer $WORKER_INTERNAL_TOKEN"
 ```
 
 ## Swagger
@@ -274,7 +291,7 @@ Swagger UI is available at:
 http://localhost:8099
 ```
 
-The OpenAPI document is stored at `docs/openapi.yaml`. It documents the Pelias search endpoints plus the read-only sync worker health and metrics endpoints.
+The OpenAPI document is stored at `docs/openapi.json`. It documents the Pelias search endpoints plus the read-only sync worker health and metrics endpoints.
 
 The gateway exposes:
 
@@ -317,7 +334,7 @@ The update flow is:
 3. The worker opens a read-only PostgreSQL session and executes the configured source `SELECT`.
 4. Each row is transformed into a Pelias-compatible document.
 5. Documents are written to Elasticsearch through the Bulk API using deterministic IDs like `postgis:osm_pois:123`.
-6. Pelias API serves user requests from Elasticsearch only.
+6. The Pelias-compatible geocoder gateway serves user requests from Elasticsearch only.
 
 Current source schedules:
 
@@ -327,7 +344,7 @@ Current source schedules:
 - `admin_boundaries`: weekly on Sunday at 03:00.
 - `addresses`: disabled in the config.
 
-For deletes, normal sync uses source-scoped ID diffing: the worker stores the IDs seen in the previous successful run in `state/sync-state.json`; if an ID disappears from the next SELECT result, the worker deletes that document from Elasticsearch. For clean full rebuilds, use blue/green reindex:
+For deletes, normal sync uses source-scoped ID diffing: the worker stores the IDs seen in the previous successful run in `state/sync-state.json`; if an ID disappears from the next SELECT result, the worker deletes that document from Elasticsearch. The worker rejects cross-source delete IDs and blocks the delete diff when a source document count drops beyond the configured safety threshold. For clean full rebuilds, use blue/green reindex:
 
 ```bash
 docker compose exec postgis-readonly-sync-worker npm run reindex:all
@@ -373,14 +390,12 @@ Phase 1:
 Phase 2:
 
 - Tune source schedules.
-- Expand source-specific delete handling.
-- Improve hierarchy fields.
-- Add validation checks and indexed-count thresholds.
+- Tune source-specific delete thresholds.
+- Improve spatial hierarchy enrichment.
 
 Phase 3:
 
 - Add production hierarchy enrichment.
-- Add multilingual ranking and custom scoring.
 - Move state to SQLite or Elasticsearch metadata.
 - Add Prometheus/Grafana dashboards and alerting.
 

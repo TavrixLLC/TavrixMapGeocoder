@@ -38,11 +38,28 @@ function makeServer() {
     },
     getRun(runId) {
       return this.state.runs.find(item => item.run_id === runId) || null;
+    },
+    staleSources(defaultThreshold, sources) {
+      const stale = [];
+      for (const [name, state] of Object.entries(this.state.sources || {})) {
+        const source = (sources || []).find(item => item.name === name);
+        const threshold = (source && source.stale_after_seconds) || defaultThreshold;
+        if (!state.last_success_timestamp) continue;
+        const staleness = Math.floor((Date.now() - new Date(state.last_success_timestamp).getTime()) / 1000);
+        if (staleness > threshold) {
+          stale.push({ source: name, staleness_seconds: staleness, freshness_threshold_seconds: threshold });
+        }
+      }
+      return stale;
     }
   };
 
   const server = new HealthServer({
-    config: { worker: { health_port: 0 }, elasticsearch: { read_alias: 'pelias' } },
+    config: {
+      worker: { health_port: 0 },
+      elasticsearch: { read_alias: 'pelias' },
+      sources: [{ name: 'admin_boundaries', stale_after_seconds: 604800 }]
+    },
     metrics: {
       contentType: 'text/plain',
       async render() { return ''; },
@@ -86,6 +103,48 @@ test('worker run endpoints require internal token and list runs', async () => {
     assert.equal(list.status, 200);
     const body = await list.json();
     assert.equal(body.runs[0].run_id, 'run_test');
+  } finally {
+    await server.stop();
+  }
+});
+
+test('worker ready uses source-specific stale thresholds', async () => {
+  const server = makeServer();
+  server.stateStore.state.sources = {
+    admin_boundaries: {
+      last_success_timestamp: new Date(Date.now() - 48 * 3600 * 1000).toISOString()
+    }
+  };
+  server.start();
+  const port = server.server.address().port;
+
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/health/ready`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.checks.worker_stale, false);
+    assert.deepEqual(body.stale_sources, []);
+  } finally {
+    await server.stop();
+  }
+});
+
+test('worker ready reports degraded after unexpected source count drop', async () => {
+  const server = makeServer();
+  server.stateStore = server.stateStore || null;
+  server.stateStore.state.sources = {
+    osm_pois: {
+      last_error: { code: 'unexpected_source_drop' }
+    }
+  };
+  server.start();
+  const port = server.server.address().port;
+
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/health/ready`);
+    assert.equal(res.status, 503);
+    const body = await res.json();
+    assert.equal(body.checks.source_counts_ok, false);
   } finally {
     await server.stop();
   }

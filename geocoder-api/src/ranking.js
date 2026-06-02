@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { analyzeQueryExpansion } = require('./query-expansion');
 
 let _rankingConfig = null;
 
@@ -31,23 +32,53 @@ function loadRankingConfig(configPath) {
   // Sensible defaults
   _rankingConfig = {
     layers: { venue: 1.0, address: 1.0, street: 0.8, locality: 0.6, region: 0.4, country: 0.2 },
-    distance: { enabled: true, decay_km: 5 },
+    distance: {
+      enabled: true,
+      decay_km: 3,
+      offset_km: 0.2,
+      weight: 15,
+      proximity_boosts: [
+        { distance: '5km', weight: 40 },
+        { distance: '25km', weight: 15 },
+        { distance: '100km', weight: 5 }
+      ]
+    },
     dedupe: { enabled: true, distance_threshold_meters: 30 },
     exact_match_boost: 2.0,
     prefix_match_boost: 1.5,
-    category_match_boost: 1.3
+    category_match_boost: 1.3,
+    popularity_weight: 0.1
   };
   return _rankingConfig;
+}
+
+function getRankingFormula() {
+  const rc = _rankingConfig || loadRankingConfig();
+  return {
+    formula: 'final_score = text_relevance + proximity_score + popularity_importance + category_boost + exact_name_boost + layer_boost',
+    components: {
+      text_relevance: 'Elasticsearch multi_match score over name, label, phrase, admin, category_terms, intent_groups, category_ids, and OSM source tag fields.',
+      proximity_score: `Gauss decay on center_point when a focus point is supplied; scale=${((rc.distance || {}).decay_km || 5)}km.`,
+      popularity_importance: `log1p(popularity) and log1p(importance) with popularity factor ${(rc.popularity_weight == null ? 0.1 : rc.popularity_weight)}.`,
+      category_boost: `Additional weight ${(rc.category_match_boost || 1.3)} when requested categories, taxonomy category_terms, intent_groups, or OSM tags match.`,
+      exact_name_boost: `Exact and phrase name matches use boost ${(rc.exact_match_boost || 2.0)}.`,
+      layer_boost: 'Layer weights are applied as filter functions from config/ranking.json.',
+      semantic_expansion: 'In-memory category taxonomy resolves multilingual aliases and Iraqi/Kurdish/Latin spelling variants before query construction.'
+    },
+    boost_mode: 'sum; multiply when focus.point is supplied',
+    score_mode: 'sum'
+  };
 }
 
 /**
  * Builds a full-text search ES query with ranking.
  */
 function buildSearchQuery(text, options = {}) {
-  const rc = _rankingConfig || {};
+  const rc = _rankingConfig || loadRankingConfig();
   const size = options.size || 10;
   const filters = [];
   const should = [];
+  const expansion = analyzeQueryExpansion(text, { ...options, mode: 'search' });
 
   // Layer filter
   addListFilter(filters, 'layer', options.layers);
@@ -60,25 +91,7 @@ function buildSearchQuery(text, options = {}) {
   // Boundary filters
   addBoundaryFilters(filters, options);
 
-  // Main multi-match query
-  const must = [{
-    multi_match: {
-      query: text,
-      fields: [
-        'name.default^4',
-        'name.ar^3',
-        'name.en^3',
-        'name.ku^2',
-        'phrase.default^3',
-        'phrase.ar^2',
-        'phrase.en^2',
-        'category^1'
-      ],
-      type: 'best_fields',
-      operator: 'or',
-      fuzziness: 'AUTO'
-    }
-  }];
+  const must = buildSemanticMustClauses(text, expansion);
 
   // Exact match boost
   should.push({
@@ -100,6 +113,14 @@ function buildSearchQuery(text, options = {}) {
     }
   }
 
+  for (const category of expansion.categoryIds) {
+    should.push({ term: { category_ids: { value: category, boost: (rc.category_match_boost || 1.3) + 2 } } });
+  }
+
+  for (const group of expansion.intentGroups || []) {
+    should.push({ term: { intent_groups: { value: group, boost: rc.category_match_boost || 1.3 } } });
+  }
+
   const query = {
     bool: {
       must,
@@ -108,31 +129,10 @@ function buildSearchQuery(text, options = {}) {
     }
   };
 
-  const body = { size, query };
-
-  // Focus point distance decay
-  if (options.focusLat != null && options.focusLon != null && rc.distance && rc.distance.enabled) {
-    body.query = {
-      function_score: {
-        query,
-        functions: [{
-          gauss: {
-            center_point: {
-              origin: { lat: options.focusLat, lon: options.focusLon },
-              scale: `${rc.distance.decay_km || 5}km`,
-              offset: '0.5km',
-              decay: 0.5
-            }
-          },
-          weight: 1.5
-        }],
-        score_mode: 'sum',
-        boost_mode: 'multiply'
-      }
-    };
-  }
-
-  return body;
+  return {
+    size,
+    query: applyRankingFormula(query, { ...options, categoryExpansion: expansion })
+  };
 }
 
 /**
@@ -142,6 +142,7 @@ function buildSearchQuery(text, options = {}) {
 function buildAutocompleteQuery(text, options = {}) {
   const size = options.size || 5;
   const filters = [];
+  const expansion = analyzeQueryExpansion(text, { ...options, mode: 'autocomplete' });
 
   addListFilter(filters, 'layer', options.layers);
   addListFilter(filters, 'source', options.sources);
@@ -150,33 +151,7 @@ function buildAutocompleteQuery(text, options = {}) {
   }
   addBoundaryFilters(filters, options);
 
-  const must = [{
-    bool: {
-      should: [
-        {
-          match_phrase_prefix: {
-            'name.default': { query: text, boost: 4 }
-          }
-        },
-        {
-          match_phrase_prefix: {
-            'name.ar': { query: text, boost: 3 }
-          }
-        },
-        {
-          match_phrase_prefix: {
-            'name.en': { query: text, boost: 3 }
-          }
-        },
-        {
-          match_phrase_prefix: {
-            'phrase.default': { query: text, boost: 2 }
-          }
-        }
-      ],
-      minimum_should_match: 1
-    }
-  }];
+  const must = buildAutocompleteMustClauses(text, expansion);
 
   const query = {
     bool: {
@@ -185,31 +160,10 @@ function buildAutocompleteQuery(text, options = {}) {
     }
   };
 
-  const body = { size, query };
-
-  // Focus point scoring
-  if (options.focusLat != null && options.focusLon != null) {
-    body.query = {
-      function_score: {
-        query,
-        functions: [{
-          gauss: {
-            center_point: {
-              origin: { lat: options.focusLat, lon: options.focusLon },
-              scale: '5km',
-              offset: '0.5km',
-              decay: 0.5
-            }
-          },
-          weight: 1.0
-        }],
-        score_mode: 'sum',
-        boost_mode: 'multiply'
-      }
-    };
-  }
-
-  return body;
+  return {
+    size,
+    query: applyRankingFormula(query, { ...options, categoryExpansion: expansion })
+  };
 }
 
 /**
@@ -500,10 +454,271 @@ function addBoundaryFilters(filters, query) {
 
   // Country boundary
   if (query['boundary.country']) {
+    const code = normalizeCountryCode(query['boundary.country']);
     filters.push({
-      term: { 'parent.country_a': query['boundary.country'].toUpperCase() }
+      bool: {
+        should: [
+          { term: { country_a: code } },
+          { match: { 'parent.country_a': code } }
+        ],
+        minimum_should_match: 1
+      }
     });
   }
+}
+
+function normalizeCountryCode(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function buildSemanticMustClauses(text, expansion) {
+  const must = [];
+
+  if (expansion.categoryIds.length > 0 || (expansion.intentGroups || []).length > 0) {
+    must.push(buildCategoryIntentClause(expansion));
+  }
+
+  if (expansion.placeTerms.length > 0) {
+    must.push(buildPlaceIntentClause(expansion.placeTerms));
+  }
+
+  if (expansion.unmatchedText) {
+    must.push(buildTextIntentClause([expansion.unmatchedText], { operator: 'and' }));
+  }
+
+  if (must.length === 0) {
+    must.push(buildTextIntentClause(expansion.expandedTerms.length ? expansion.expandedTerms : [text]));
+  }
+
+  return must;
+}
+
+function buildAutocompleteMustClauses(text, expansion) {
+  const must = [];
+
+  if (expansion.categoryIds.length > 0 || (expansion.intentGroups || []).length > 0) {
+    must.push(buildCategoryIntentClause(expansion, { autocomplete: true }));
+  }
+
+  if (expansion.placeTerms.length > 0) {
+    must.push(buildPlacePrefixClause(expansion.placeTerms));
+  }
+
+  const remainingTerms = expansion.unmatchedText
+    ? [expansion.unmatchedText]
+    : [expansion.normalized || text].filter(Boolean);
+  must.push(buildAutocompleteTextClause(remainingTerms));
+
+  return must;
+}
+
+function buildTextIntentClause(terms, opts = {}) {
+  const clauses = unique(terms).map((term, index) => ({
+    multi_match: {
+      query: term,
+      fields: searchTextFields(),
+      type: 'best_fields',
+      operator: opts.operator || 'or',
+      fuzziness: 'AUTO',
+      boost: index === 0 ? 1 : 0.65
+    }
+  }));
+
+  return {
+    bool: {
+      should: clauses,
+      minimum_should_match: 1
+    }
+  };
+}
+
+function buildCategoryIntentClause(expansion, opts = {}) {
+  const boost = opts.autocomplete ? 7 : 8;
+  const should = [];
+
+  for (const category of expansion.categoryIds) {
+    should.push({ term: { category_ids: { value: category, boost } } });
+    should.push({ term: { categories: { value: category, boost: boost - 1 } } });
+    should.push({ term: { category: { value: category, boost: boost - 1 } } });
+  }
+
+  for (const group of expansion.intentGroups || []) {
+    should.push({ term: { intent_groups: { value: group, boost: opts.autocomplete ? 4 : 3 } } });
+  }
+
+  for (const tag of expansion.sourceTags) {
+    should.push({ term: { [`source_tags.${tag.field}`]: { value: tag.value, boost: boost - 1 } } });
+  }
+
+  const categoryTerms = opts.autocomplete
+    ? (expansion.categoryTerms || []).slice(0, 6)
+    : (expansion.categoryTerms || []);
+  for (const term of categoryTerms) {
+    should.push({
+      match: {
+        category_aliases: {
+          query: term,
+          boost: opts.autocomplete ? 4 : 3
+        }
+      }
+    });
+    should.push({
+      match: {
+        category_terms: {
+          query: term,
+          boost: opts.autocomplete ? 5 : 4
+        }
+      }
+    });
+  }
+
+  return {
+    bool: {
+      should,
+      minimum_should_match: 1
+    }
+  };
+}
+
+function buildPlaceIntentClause(placeTerms) {
+  const should = [];
+  for (const term of unique(placeTerms)) {
+    should.push({
+      multi_match: {
+        query: term,
+        fields: placeTextFields(),
+        type: 'best_fields',
+        operator: 'and',
+        fuzziness: 'AUTO'
+      }
+    });
+  }
+
+  return {
+    bool: {
+      should,
+      minimum_should_match: 1
+    }
+  };
+}
+
+function buildPlacePrefixClause(placeTerms) {
+  const should = [];
+  for (const term of unique(placeTerms)) {
+    should.push({
+      multi_match: {
+        query: term,
+        fields: placeTextFields(),
+        type: 'bool_prefix',
+        fuzziness: 'AUTO'
+      }
+    });
+    should.push({
+      match_phrase_prefix: {
+        label: { query: term, boost: 3 }
+      }
+    });
+  }
+
+  return {
+    bool: {
+      should,
+      minimum_should_match: 1
+    }
+  };
+}
+
+function buildAutocompleteTextClause(terms) {
+  const should = [];
+  for (const term of unique(terms)) {
+    should.push({
+      multi_match: {
+        query: term,
+        fields: autocompleteTextFields(),
+        type: 'bool_prefix',
+        fuzziness: 'AUTO'
+      }
+    });
+    for (const field of ['name.default', 'label', 'name.ar', 'name.en', 'name.ku', 'name.ckb', 'category_aliases']) {
+      should.push({
+        match_phrase_prefix: {
+          [field]: { query: term, boost: field === 'category_aliases' || field === 'category_terms' ? 3 : 4 }
+        }
+      });
+    }
+  }
+
+  return {
+    bool: {
+      should,
+      minimum_should_match: 1
+    }
+  };
+}
+
+function searchTextFields() {
+  return [
+    'name.default^5',
+    'label^4',
+    'names.*^3',
+    'name.ar^3',
+    'name.en^3',
+    'name.ku^2',
+    'name.ckb^2',
+    'phrase.default^3',
+    'phrase.ar^2',
+    'phrase.en^2',
+    'parent.locality^2',
+    'locality^2',
+    'parent.region^1.5',
+    'region^1.5',
+    'country^1',
+    'category^2',
+    'categories^2',
+    'category_ids^2',
+    'category_terms^4',
+    'intent_groups^2',
+    'category_aliases^3',
+    'source_tags.amenity^2',
+    'source_tags.shop^2',
+    'source_tags.tourism^2',
+    'source_tags.leisure^2',
+    'source_tags.office^2'
+  ];
+}
+
+function placeTextFields() {
+  return [
+    'parent.locality^4',
+    'locality^4',
+    'parent.localadmin^3',
+    'localadmin^3',
+    'parent.region^3',
+    'region^3',
+    'parent.county^2',
+    'county^2',
+    'parent.neighbourhood^2',
+    'neighbourhood^2'
+  ];
+}
+
+function autocompleteTextFields() {
+  return [
+    'name.default^5',
+    'label^4',
+    'names.*^3',
+    'name.ar^3',
+    'name.en^3',
+    'name.ku^2',
+    'name.ckb^2',
+    'phrase.default^2',
+    'category_terms^5',
+    'category_aliases^4',
+    'intent_groups^2',
+    'parent.locality^2',
+    'locality^2',
+    'region^1.5'
+  ];
 }
 
 function addListFilter(filters, field, value) {
@@ -518,48 +733,148 @@ function addListFilter(filters, field, value) {
   }
 }
 
-/**
- * Builds a debug/explain ES query for internal introspection.
- */
-function buildExplainQuery(query, text) {
-  const filters = [];
-  addListFilter(filters, 'layer', query.layers);
-  addListFilter(filters, 'source', query.sources);
-  addBoundaryFilters(filters, query);
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
 
-  if (query['point.lat'] && query['point.lon']) {
-    filters.push({
-      geo_distance: {
-        distance: query.radius ? `${Number(query.radius)}m` : '50000m',
-        center_point: {
-          lat: Number(query['point.lat']),
-          lon: Number(query['point.lon'])
-        }
-      }
-    });
-  }
+function applyRankingFormula(query, options = {}) {
+  const functions = buildRankingFunctions(options);
+  if (functions.length === 0) return query;
+  const hasFocus = options.focusLat != null && options.focusLon != null;
 
   return {
-    size: 10,
-    query: {
-      bool: {
-        must: [{
-          multi_match: {
-            query: text,
-            fields: ['name.default^4', 'phrase.default^3', 'name.en^3', 'name.ar^3', 'category']
-          }
-        }],
-        filter: filters
-      }
-    },
-    aggs: {
-      layers: { terms: { field: 'layer', size: 20 } }
+    function_score: {
+      query,
+      functions,
+      score_mode: 'sum',
+      boost_mode: hasFocus ? 'multiply' : 'sum'
     }
   };
 }
 
+function buildRankingFunctions(options = {}) {
+  const rc = _rankingConfig || loadRankingConfig();
+  const functions = [];
+
+  if (options.focusLat != null && options.focusLon != null && (!rc.distance || rc.distance.enabled !== false)) {
+    const distance = rc.distance || {};
+    const offsetKm = distance.offset_km == null ? 0.2 : distance.offset_km;
+    functions.push({
+      gauss: {
+        center_point: {
+          origin: { lat: options.focusLat, lon: options.focusLon },
+          scale: `${distance.decay_km || 3}km`,
+          offset: `${offsetKm}km`,
+          decay: 0.5
+        }
+      },
+      weight: distance.weight || 15
+    });
+
+    const proximityBoosts = Array.isArray(distance.proximity_boosts)
+      ? distance.proximity_boosts
+      : [
+          { distance: '5km', weight: 40 },
+          { distance: '25km', weight: 15 },
+          { distance: '100km', weight: 5 }
+        ];
+    for (const boost of proximityBoosts) {
+      if (!boost || !boost.distance || !Number.isFinite(Number(boost.weight))) continue;
+      functions.push({
+        filter: {
+          geo_distance: {
+            distance: String(boost.distance),
+            center_point: { lat: options.focusLat, lon: options.focusLon }
+          }
+        },
+        weight: Number(boost.weight)
+      });
+    }
+  }
+
+  functions.push({
+    field_value_factor: {
+      field: 'popularity',
+      factor: rc.popularity_weight == null ? 0.1 : rc.popularity_weight,
+      modifier: 'log1p',
+      missing: 0
+    },
+    weight: 1
+  });
+
+  functions.push({
+    field_value_factor: {
+      field: 'importance',
+      factor: rc.importance_weight == null ? 1 : rc.importance_weight,
+      modifier: 'log1p',
+      missing: 0
+    },
+    weight: 1
+  });
+
+  const categories = normalizeList(options.categories);
+  const resolvedCategories = unique([
+    ...categories,
+    ...((options.categoryExpansion && options.categoryExpansion.categoryIds) || [])
+  ]);
+  if (resolvedCategories.length > 0) {
+    functions.push({
+      filter: { terms: { category_ids: resolvedCategories } },
+      weight: rc.category_match_boost || 1.3
+    });
+  }
+
+  const intentGroups = unique((options.categoryExpansion && options.categoryExpansion.intentGroups) || []);
+  if (intentGroups.length > 0) {
+    functions.push({
+      filter: { terms: { intent_groups: intentGroups } },
+      weight: Math.max(1, (rc.category_match_boost || 1.3) - 0.15)
+    });
+  }
+
+  for (const [layer, weight] of Object.entries(rc.layers || {})) {
+    if (Number.isFinite(Number(weight)) && Number(weight) !== 1) {
+      functions.push({
+        filter: { term: { layer } },
+        weight: Number(weight)
+      });
+    }
+  }
+
+  return functions;
+}
+
+function normalizeList(value) {
+  if (!value) return [];
+  return (Array.isArray(value) ? value : String(value).split(','))
+    .map(item => String(item).trim())
+    .filter(Boolean);
+}
+
+/**
+ * Builds a debug/explain ES query for internal introspection.
+ */
+function buildExplainQuery(query, text) {
+  const focusLat = query['focus.point.lat'] != null ? Number(query['focus.point.lat']) : undefined;
+  const focusLon = query['focus.point.lon'] != null ? Number(query['focus.point.lon']) : undefined;
+  const body = buildSearchQuery(text, {
+    ...query,
+    size: Number(query.size) || 10,
+    focusLat,
+    focusLon
+  });
+
+  body.aggs = {
+    layers: { terms: { field: 'layer', size: 20 } }
+  };
+  body.track_total_hits = true;
+
+  return body;
+}
+
 module.exports = {
   loadRankingConfig,
+  getRankingFormula,
   buildSearchQuery,
   buildAutocompleteQuery,
   buildStructuredQuery,
@@ -567,5 +882,8 @@ module.exports = {
   buildNearbyQuery,
   buildExplainQuery,
   addBoundaryFilters,
-  addListFilter
+  addListFilter,
+  applyRankingFormula,
+  buildRankingFunctions,
+  normalizeCountryCode
 };

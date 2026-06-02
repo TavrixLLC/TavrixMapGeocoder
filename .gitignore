@@ -5,3 +5,6 @@ data/
 state/
 npm-debug.log*
 *.log
+generated/wikidata-cache/
+reports/*.json
+reports/*.md

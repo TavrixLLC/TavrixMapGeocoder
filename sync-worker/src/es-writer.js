@@ -23,28 +23,57 @@ class EsWriter {
   async indexDocuments(sourceName, documents) {
     let indexed = 0;
     let failed = 0;
+    const failedSamples = [];
 
     for (const bulk of this.toBulks(documents, 'index')) {
       const result = await this.writeBulkWithRetry(sourceName, bulk);
       indexed += result.success;
       failed += result.failed;
+      collectSamples(failedSamples, result.failedSamples, sampleLimit(this.config));
     }
 
-    return { indexed, failed };
+    return { indexed, failed, failedSamples };
   }
 
   async deleteIds(sourceName, ids) {
-    const deleteDocs = ids.map(id => ({ id }));
+    const sourcePrefix = `postgis:${sourceName}:`;
+    const safeIds = [];
+    const rejectedIds = [];
+
+    for (const id of ids) {
+      const value = String(id);
+      if (value.startsWith(sourcePrefix)) {
+        safeIds.push(value);
+      } else {
+        rejectedIds.push(value);
+      }
+    }
+
+    if (rejectedIds.length > 0) {
+      this.log.warn('Rejected cross-source delete IDs', {
+        source: sourceName,
+        count: rejectedIds.length,
+        examples: rejectedIds.slice(0, 3)
+      });
+    }
+
+    const deleteDocs = safeIds.map(id => ({ id }));
     let deleted = 0;
-    let failed = 0;
+    let failed = rejectedIds.length;
+    const failedSamples = rejectedIds.map(id => ({
+      stage: 'delete_guard',
+      id,
+      error: 'cross_source_delete_rejected'
+    }));
 
     for (const bulk of this.toBulks(deleteDocs, 'delete')) {
       const result = await this.writeBulkWithRetry(sourceName, bulk);
       deleted += result.success;
       failed += result.failed;
+      collectSamples(failedSamples, result.failedSamples, sampleLimit(this.config));
     }
 
-    return { deleted, failed };
+    return { deleted, failed, failedSamples };
   }
 
   toBulks(documents, operation) {
@@ -80,6 +109,7 @@ class EsWriter {
     let pending = bulk;
     let totalSuccess = 0;
     let totalFailed = 0;
+    const failedSamples = [];
 
     for (let attempt = 0; attempt <= this.maxRetries && pending.length > 0; attempt++) {
       if (attempt > 0) {
@@ -92,6 +122,7 @@ class EsWriter {
 
       totalSuccess += response.successItems.length;
       totalFailed += response.permanentFailures.length;
+      collectSamples(failedSamples, response.permanentFailures, sampleLimit(this.config));
 
       if (response.permanentFailures.length > 0) {
         this.log.warn('Permanent Elasticsearch bulk failures', {
@@ -106,6 +137,13 @@ class EsWriter {
 
     if (pending.length > 0) {
       totalFailed += pending.length;
+      collectSamples(failedSamples, pending.map(item => ({
+        stage: 'elasticsearch_bulk_retry_exhausted',
+        id: item.id,
+        action: Object.keys(item.action || {})[0],
+        payload: sanitizePayload(item.payload),
+        error: 'retry_exhausted'
+      })), sampleLimit(this.config));
       this.log.error('Elasticsearch bulk items exhausted retries', {
         source: sourceName,
         count: pending.length,
@@ -113,7 +151,7 @@ class EsWriter {
       });
     }
 
-    return { success: totalSuccess, failed: totalFailed };
+    return { success: totalSuccess, failed: totalFailed, failedSamples };
   }
 
   async writeBulk(items) {
@@ -149,16 +187,40 @@ class EsWriter {
         transientFailures.push(original);
       } else {
         permanentFailures.push({
+          stage: 'elasticsearch_bulk',
           id: original.id,
           status,
           type,
-          reason: result.error.reason
+          reason: result.error.reason,
+          action: Object.keys(original.action || {})[0],
+          payload: sanitizePayload(original.payload)
         });
       }
     }
 
     return { successItems, transientFailures, permanentFailures };
   }
+}
+
+function sampleLimit(config) {
+  return Number((config.worker && config.worker.max_failure_samples) || 20);
+}
+
+function collectSamples(target, samples = [], limit = 20) {
+  for (const sample of samples) {
+    if (target.length >= limit) return;
+    target.push(sample);
+  }
+}
+
+function sanitizePayload(payload) {
+  if (!payload || typeof payload !== 'object') return payload || null;
+  return JSON.parse(JSON.stringify(payload, (_key, value) => {
+    if (typeof value === 'string' && value.length > 500) {
+      return `${value.slice(0, 500)}...`;
+    }
+    return value;
+  }));
 }
 
 function sleep(ms) {

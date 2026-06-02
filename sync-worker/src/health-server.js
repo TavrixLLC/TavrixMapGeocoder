@@ -54,19 +54,25 @@ class HealthServer {
       const staleThreshold = Number(process.env.WORKER_STALE_THRESHOLD_SECONDS || 86400);
       try {
         await this.stateStore.load();
-        checks.worker_stale = this.stateStore.isStale
-          ? this.stateStore.isStale(staleThreshold)
-          : false;
+        const staleSources = this.stateStore.staleSources
+          ? this.stateStore.staleSources(staleThreshold, this.config.sources || [])
+          : [];
+        checks.worker_stale = staleSources.length > 0;
+        checks.source_counts_ok = sourceCountsOk(this.stateStore.state);
       } catch (_) {
         checks.worker_stale = false;
+        checks.source_counts_ok = true;
       }
 
       const ok = checks.postgis && checks.elasticsearch && checks.aliases
-        && checks.index_has_documents && !checks.worker_stale;
+        && checks.index_has_documents && !checks.worker_stale && checks.source_counts_ok;
       res.status(ok ? 200 : 503).json({
         status: ok ? 'ok' : 'degraded',
         checks,
-        documents: documentCount
+        documents: documentCount,
+        stale_sources: this.stateStore.staleSources
+          ? this.stateStore.staleSources(staleThreshold, this.config.sources || [])
+          : []
       });
     });
 
@@ -236,6 +242,11 @@ function summarizeSources(sources) {
     };
   }
   return summary;
+}
+
+function sourceCountsOk(state) {
+  return !Object.values((state && state.sources) || {})
+    .some(source => source.last_error && source.last_error.code === 'unexpected_source_drop');
 }
 
 function errorBody(code, message, details = {}) {

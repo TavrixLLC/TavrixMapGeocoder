@@ -1,0 +1,2035 @@
+{
+  "version": 1,
+  "generated_at": "2026-05-31T21:44:03.814Z",
+  "source": "wikidata",
+  "languages": [
+    "en",
+    "ar",
+    "ku",
+    "ckb",
+    "fa",
+    "tr",
+    "fr",
+    "de"
+  ],
+  "categories": {
+    "restaurant": {
+      "wikidata": [
+        "Q11707"
+      ],
+      "labels": {
+        "en": "restaurant",
+        "ar": "مطعم",
+        "ku": "xwaringeh",
+        "ckb": "خواردنگە",
+        "fa": "غذاخوری",
+        "tr": "restoran",
+        "fr": "restaurant",
+        "de": "Restaurant"
+      },
+      "aliases": {
+        "en": [
+          "eatery",
+          "eating house",
+          "restaurants",
+          "eateries",
+          "eating houses"
+        ],
+        "ar": [
+          "المطعم"
+        ],
+        "tr": [
+          "iokanta"
+        ],
+        "fr": [
+          "restaurants",
+          "restau",
+          "resto"
+        ],
+        "de": [
+          "Restaurants",
+          "Wirtshaus",
+          "Wirtschaft"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "eatery",
+          "eating house",
+          "restaurants",
+          "eateries",
+          "eating houses"
+        ],
+        "ar": [
+          "المطعم"
+        ],
+        "tr": [
+          "iokanta"
+        ],
+        "fr": [
+          "restaurants",
+          "restau",
+          "resto"
+        ],
+        "de": [
+          "Restaurants",
+          "Wirtshaus",
+          "Wirtschaft"
+        ]
+      },
+      "raw_qids": {
+        "Q11707": {
+          "labels": {
+            "en": "restaurant",
+            "ar": "مطعم",
+            "ku": "xwaringeh",
+            "ckb": "خواردنگە",
+            "fa": "غذاخوری",
+            "tr": "restoran",
+            "fr": "restaurant",
+            "de": "Restaurant"
+          },
+          "aliases": {
+            "en": [
+              "eatery",
+              "eating house",
+              "restaurants",
+              "eateries",
+              "eating houses"
+            ],
+            "ar": [
+              "المطعم"
+            ],
+            "tr": [
+              "iokanta"
+            ],
+            "fr": [
+              "restaurants",
+              "restau",
+              "resto"
+            ],
+            "de": [
+              "Restaurants",
+              "Wirtshaus",
+              "Wirtschaft"
+            ]
+          }
+        }
+      }
+    },
+    "cafe": {
+      "wikidata": [
+        "Q30022"
+      ],
+      "labels": {
+        "en": "café",
+        "ar": "مقهى",
+        "ku": "qehwexane",
+        "ckb": "قاوەخانە",
+        "fa": "کافه",
+        "tr": "kafe",
+        "fr": "café",
+        "de": "Café"
+      },
+      "aliases": {
+        "en": [
+          "cafe",
+          "coffee shop",
+          "coffee house",
+          "coffee bar"
+        ],
+        "ar": [
+          "قهوة",
+          "مقهى بار"
+        ],
+        "fa": [
+          "کافی شاپ",
+          "قهوه خانه",
+          "قهوه‌خانه"
+        ],
+        "tr": [
+          "çay kahve evi",
+          "çay kahve",
+          "çay evi",
+          "cafe"
+        ],
+        "fr": [
+          "coffee bar"
+        ],
+        "de": [
+          "Kaffeehaus"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "cafe",
+          "coffee shop",
+          "coffee house",
+          "coffee bar"
+        ],
+        "ar": [
+          "قهوة",
+          "مقهى بار"
+        ],
+        "fa": [
+          "کافی شاپ",
+          "قهوه خانه",
+          "قهوه‌خانه"
+        ],
+        "tr": [
+          "çay kahve evi",
+          "çay kahve",
+          "çay evi",
+          "cafe"
+        ],
+        "fr": [
+          "coffee bar"
+        ],
+        "de": [
+          "Kaffeehaus"
+        ]
+      },
+      "raw_qids": {
+        "Q30022": {
+          "labels": {
+            "en": "café",
+            "ar": "مقهى",
+            "ku": "qehwexane",
+            "ckb": "قاوەخانە",
+            "fa": "کافه",
+            "tr": "kafe",
+            "fr": "café",
+            "de": "Café"
+          },
+          "aliases": {
+            "en": [
+              "cafe",
+              "coffee shop",
+              "coffee house",
+              "coffee bar"
+            ],
+            "ar": [
+              "قهوة",
+              "مقهى بار"
+            ],
+            "fa": [
+              "کافی شاپ",
+              "قهوه خانه",
+              "قهوه‌خانه"
+            ],
+            "tr": [
+              "çay kahve evi",
+              "çay kahve",
+              "çay evi",
+              "cafe"
+            ],
+            "fr": [
+              "coffee bar"
+            ],
+            "de": [
+              "Kaffeehaus"
+            ]
+          }
+        }
+      }
+    },
+    "fast_food": {
+      "wikidata": [
+        "Q1751429"
+      ],
+      "labels": {
+        "en": "fast food restaurant",
+        "ar": "مطعم وجبات سريعة",
+        "ckb": "ڕێستۆرانتی خواردنی خێرا",
+        "fa": "رستوران فست فود",
+        "tr": "ayaküstü restoran",
+        "fr": "restaurant rapide",
+        "de": "Schnellrestaurant"
+      },
+      "aliases": {
+        "en": [
+          "quick service restaurant",
+          "QSR",
+          "food joint",
+          "self-service restaurant"
+        ],
+        "tr": [
+          "fast-food restoranı"
+        ],
+        "de": [
+          "Fastfood-Kette",
+          "Fast-Food-Kette",
+          "Selbstbedienungsgaststätte",
+          "Speisesaal",
+          "Automatenrestaurant",
+          "Selbstbedienungsrestaurant",
+          "Cafete"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "quick service restaurant",
+          "QSR",
+          "food joint",
+          "self-service restaurant"
+        ],
+        "tr": [
+          "fast-food restoranı"
+        ],
+        "de": [
+          "Fastfood-Kette",
+          "Fast-Food-Kette",
+          "Selbstbedienungsgaststätte",
+          "Speisesaal",
+          "Automatenrestaurant",
+          "Selbstbedienungsrestaurant",
+          "Cafete"
+        ]
+      },
+      "raw_qids": {
+        "Q1751429": {
+          "labels": {
+            "en": "fast food restaurant",
+            "ar": "مطعم وجبات سريعة",
+            "ckb": "ڕێستۆرانتی خواردنی خێرا",
+            "fa": "رستوران فست فود",
+            "tr": "ayaküstü restoran",
+            "fr": "restaurant rapide",
+            "de": "Schnellrestaurant"
+          },
+          "aliases": {
+            "en": [
+              "quick service restaurant",
+              "QSR",
+              "food joint",
+              "self-service restaurant"
+            ],
+            "tr": [
+              "fast-food restoranı"
+            ],
+            "de": [
+              "Fastfood-Kette",
+              "Fast-Food-Kette",
+              "Selbstbedienungsgaststätte",
+              "Speisesaal",
+              "Automatenrestaurant",
+              "Selbstbedienungsrestaurant",
+              "Cafete"
+            ]
+          }
+        }
+      }
+    },
+    "pharmacy": {
+      "wikidata": [
+        "Q13107184"
+      ],
+      "labels": {
+        "en": "pharmacy",
+        "ar": "صيدلية",
+        "ku": "dermanxane",
+        "fa": "داروخانه",
+        "tr": "eczane",
+        "fr": "pharmacie",
+        "de": "Apotheke"
+      },
+      "aliases": {
+        "en": [
+          "chemist",
+          "drug store",
+          "chemist's shop",
+          "community pharmacy",
+          "drugstore",
+          "pharmacies"
+        ],
+        "ar": [
+          "الصيدليات"
+        ],
+        "fr": [
+          "apothicairerie",
+          "pharmacie d'officine"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "chemist",
+          "drug store",
+          "chemist's shop",
+          "community pharmacy",
+          "drugstore",
+          "pharmacies"
+        ],
+        "ar": [
+          "الصيدليات"
+        ],
+        "fr": [
+          "apothicairerie",
+          "pharmacie d'officine"
+        ]
+      },
+      "raw_qids": {
+        "Q13107184": {
+          "labels": {
+            "en": "pharmacy",
+            "ar": "صيدلية",
+            "ku": "dermanxane",
+            "fa": "داروخانه",
+            "tr": "eczane",
+            "fr": "pharmacie",
+            "de": "Apotheke"
+          },
+          "aliases": {
+            "en": [
+              "chemist",
+              "drug store",
+              "chemist's shop",
+              "community pharmacy",
+              "drugstore",
+              "pharmacies"
+            ],
+            "ar": [
+              "الصيدليات"
+            ],
+            "fr": [
+              "apothicairerie",
+              "pharmacie d'officine"
+            ]
+          }
+        }
+      }
+    },
+    "hospital": {
+      "wikidata": [
+        "Q16917"
+      ],
+      "labels": {
+        "en": "hospital",
+        "ar": "مستشفى",
+        "ku": "nexweşxane",
+        "ckb": "نەخۆشخانە",
+        "fa": "بیمارستان",
+        "tr": "hastane",
+        "fr": "hôpital",
+        "de": "Krankenhaus"
+      },
+      "aliases": {
+        "en": [
+          "medical centre",
+          "hospital facility",
+          "medical facility"
+        ],
+        "ar": [
+          "مشفى"
+        ],
+        "ckb": [
+          "خەستەخانە",
+          "بیمارستان"
+        ],
+        "tr": [
+          "sağlık merkezi",
+          "tıbbi merkez"
+        ],
+        "fr": [
+          "clinique",
+          "équipement hospitalier",
+          "centre hospitalier"
+        ],
+        "de": [
+          "Spital",
+          "Klinik",
+          "Klinikum"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "medical centre",
+          "hospital facility",
+          "medical facility"
+        ],
+        "ar": [
+          "مشفى"
+        ],
+        "ckb": [
+          "خەستەخانە",
+          "بیمارستان"
+        ],
+        "tr": [
+          "sağlık merkezi",
+          "tıbbi merkez"
+        ],
+        "fr": [
+          "clinique",
+          "équipement hospitalier",
+          "centre hospitalier"
+        ],
+        "de": [
+          "Spital",
+          "Klinik",
+          "Klinikum"
+        ]
+      },
+      "raw_qids": {
+        "Q16917": {
+          "labels": {
+            "en": "hospital",
+            "ar": "مستشفى",
+            "ku": "nexweşxane",
+            "ckb": "نەخۆشخانە",
+            "fa": "بیمارستان",
+            "tr": "hastane",
+            "fr": "hôpital",
+            "de": "Krankenhaus"
+          },
+          "aliases": {
+            "en": [
+              "medical centre",
+              "hospital facility",
+              "medical facility"
+            ],
+            "ar": [
+              "مشفى"
+            ],
+            "ckb": [
+              "خەستەخانە",
+              "بیمارستان"
+            ],
+            "tr": [
+              "sağlık merkezi",
+              "tıbbi merkez"
+            ],
+            "fr": [
+              "clinique",
+              "équipement hospitalier",
+              "centre hospitalier"
+            ],
+            "de": [
+              "Spital",
+              "Klinik",
+              "Klinikum"
+            ]
+          }
+        }
+      }
+    },
+    "clinic": {
+      "wikidata": [
+        "Q1774898"
+      ],
+      "labels": {
+        "en": "clinic",
+        "ar": "عيادة",
+        "fa": "درمانگاه",
+        "tr": "klinik",
+        "fr": "clinique",
+        "de": "Ambulanz"
+      },
+      "aliases": {
+        "en": [
+          "outpatient clinic",
+          "ambulatory care clinic",
+          "medical clinic",
+          "medical practice",
+          "treatment centre"
+        ],
+        "ar": [
+          "العيادات",
+          "عيادة طبية",
+          "عيادات",
+          "العيادة"
+        ],
+        "fa": [
+          "کلینیک"
+        ],
+        "tr": [
+          "muayenehane"
+        ],
+        "de": [
+          "Klinikum",
+          "Ambulatorium",
+          "Klinik",
+          "Spezialambulanz"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "outpatient clinic",
+          "ambulatory care clinic",
+          "medical clinic",
+          "medical practice",
+          "treatment centre"
+        ],
+        "ar": [
+          "العيادات",
+          "عيادة طبية",
+          "عيادات",
+          "العيادة"
+        ],
+        "fa": [
+          "کلینیک"
+        ],
+        "tr": [
+          "muayenehane"
+        ],
+        "de": [
+          "Klinikum",
+          "Ambulatorium",
+          "Klinik",
+          "Spezialambulanz"
+        ]
+      },
+      "raw_qids": {
+        "Q1774898": {
+          "labels": {
+            "en": "clinic",
+            "ar": "عيادة",
+            "fa": "درمانگاه",
+            "tr": "klinik",
+            "fr": "clinique",
+            "de": "Ambulanz"
+          },
+          "aliases": {
+            "en": [
+              "outpatient clinic",
+              "ambulatory care clinic",
+              "medical clinic",
+              "medical practice",
+              "treatment centre"
+            ],
+            "ar": [
+              "العيادات",
+              "عيادة طبية",
+              "عيادات",
+              "العيادة"
+            ],
+            "fa": [
+              "کلینیک"
+            ],
+            "tr": [
+              "muayenehane"
+            ],
+            "de": [
+              "Klinikum",
+              "Ambulatorium",
+              "Klinik",
+              "Spezialambulanz"
+            ]
+          }
+        }
+      }
+    },
+    "fuel": {
+      "wikidata": [
+        "Q205495"
+      ],
+      "labels": {
+        "en": "filling station",
+        "ar": "محطة وقود",
+        "ckb": "بەنزینخانە",
+        "fa": "نیروگاه گازی",
+        "tr": "benzin istasyonu",
+        "fr": "station-service",
+        "de": "Tankstelle"
+      },
+      "aliases": {
+        "en": [
+          "fuelling station",
+          "garage",
+          "service station",
+          "servo",
+          "fueling station",
+          "automotive service station",
+          "fuel station"
+        ],
+        "ar": [
+          "محطة بنزين"
+        ],
+        "tr": [
+          "Benzinlik",
+          "benzinci"
+        ],
+        "fr": [
+          "essencerie",
+          "station d'essence",
+          "station service",
+          "stations-service",
+          "station essence"
+        ],
+        "de": [
+          "Tankstellen",
+          "Tankstellennetz",
+          "Pflanzenöl-Tankstelle",
+          "Pflanzenöltankstelle",
+          "Versorgungsanlage"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "fuelling station",
+          "garage",
+          "service station",
+          "servo",
+          "fueling station",
+          "automotive service station",
+          "fuel station"
+        ],
+        "ar": [
+          "محطة بنزين"
+        ],
+        "tr": [
+          "Benzinlik",
+          "benzinci"
+        ],
+        "fr": [
+          "essencerie",
+          "station d'essence",
+          "station service",
+          "stations-service",
+          "station essence"
+        ],
+        "de": [
+          "Tankstellen",
+          "Tankstellennetz",
+          "Pflanzenöl-Tankstelle",
+          "Pflanzenöltankstelle",
+          "Versorgungsanlage"
+        ]
+      },
+      "raw_qids": {
+        "Q205495": {
+          "labels": {
+            "en": "filling station",
+            "ar": "محطة وقود",
+            "ckb": "بەنزینخانە",
+            "fa": "نیروگاه گازی",
+            "tr": "benzin istasyonu",
+            "fr": "station-service",
+            "de": "Tankstelle"
+          },
+          "aliases": {
+            "en": [
+              "fuelling station",
+              "garage",
+              "service station",
+              "servo",
+              "fueling station",
+              "automotive service station",
+              "fuel station"
+            ],
+            "ar": [
+              "محطة بنزين"
+            ],
+            "tr": [
+              "Benzinlik",
+              "benzinci"
+            ],
+            "fr": [
+              "essencerie",
+              "station d'essence",
+              "station service",
+              "stations-service",
+              "station essence"
+            ],
+            "de": [
+              "Tankstellen",
+              "Tankstellennetz",
+              "Pflanzenöl-Tankstelle",
+              "Pflanzenöltankstelle",
+              "Versorgungsanlage"
+            ]
+          }
+        }
+      }
+    },
+    "hotel": {
+      "wikidata": [
+        "Q27686"
+      ],
+      "labels": {
+        "en": "hotel",
+        "ar": "فندق",
+        "ku": "otêl",
+        "ckb": "ھۆتێل",
+        "fa": "هتل",
+        "tr": "otel",
+        "fr": "hôtel",
+        "de": "Hotel"
+      },
+      "aliases": {
+        "en": [
+          "hotels",
+          "hotel resort",
+          "hotel resorts"
+        ],
+        "ar": [
+          "الفنادق",
+          "فنادق"
+        ],
+        "fa": [
+          "مهمانخانه"
+        ],
+        "tr": [
+          "hotel"
+        ],
+        "fr": [
+          "hôtels",
+          "hotellerie",
+          "hôtellerie",
+          "établissement hôtelier"
+        ],
+        "de": [
+          "Hôtel"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "hotels",
+          "hotel resort",
+          "hotel resorts"
+        ],
+        "ar": [
+          "الفنادق",
+          "فنادق"
+        ],
+        "fa": [
+          "مهمانخانه"
+        ],
+        "tr": [
+          "hotel"
+        ],
+        "fr": [
+          "hôtels",
+          "hotellerie",
+          "hôtellerie",
+          "établissement hôtelier"
+        ],
+        "de": [
+          "Hôtel"
+        ]
+      },
+      "raw_qids": {
+        "Q27686": {
+          "labels": {
+            "en": "hotel",
+            "ar": "فندق",
+            "ku": "otêl",
+            "ckb": "ھۆتێل",
+            "fa": "هتل",
+            "tr": "otel",
+            "fr": "hôtel",
+            "de": "Hotel"
+          },
+          "aliases": {
+            "en": [
+              "hotels",
+              "hotel resort",
+              "hotel resorts"
+            ],
+            "ar": [
+              "الفنادق",
+              "فنادق"
+            ],
+            "fa": [
+              "مهمانخانه"
+            ],
+            "tr": [
+              "hotel"
+            ],
+            "fr": [
+              "hôtels",
+              "hotellerie",
+              "hôtellerie",
+              "établissement hôtelier"
+            ],
+            "de": [
+              "Hôtel"
+            ]
+          }
+        }
+      }
+    },
+    "bakery": {
+      "wikidata": [
+        "Q274393"
+      ],
+      "labels": {
+        "en": "bakery",
+        "ar": "مخبز",
+        "ckb": "نانەواخانە",
+        "fa": "نانوایی",
+        "tr": "fırın",
+        "fr": "boulangerie",
+        "de": "Bäckerei"
+      },
+      "aliases": {
+        "en": [
+          "baker's shop",
+          "bake shop",
+          "bakeshop",
+          "bakeries"
+        ],
+        "ar": [
+          "مخبزة",
+          "المخبز"
+        ],
+        "fa": [
+          "نانوا",
+          "خبازی"
+        ],
+        "tr": [
+          "Fırın",
+          "Pide fırını"
+        ],
+        "de": [
+          "Bäckerhaus",
+          "Backwarenstube"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "baker's shop",
+          "bake shop",
+          "bakeshop",
+          "bakeries"
+        ],
+        "ar": [
+          "مخبزة",
+          "المخبز"
+        ],
+        "fa": [
+          "نانوا",
+          "خبازی"
+        ],
+        "tr": [
+          "Fırın",
+          "Pide fırını"
+        ],
+        "de": [
+          "Bäckerhaus",
+          "Backwarenstube"
+        ]
+      },
+      "raw_qids": {
+        "Q274393": {
+          "labels": {
+            "en": "bakery",
+            "ar": "مخبز",
+            "ckb": "نانەواخانە",
+            "fa": "نانوایی",
+            "tr": "fırın",
+            "fr": "boulangerie",
+            "de": "Bäckerei"
+          },
+          "aliases": {
+            "en": [
+              "baker's shop",
+              "bake shop",
+              "bakeshop",
+              "bakeries"
+            ],
+            "ar": [
+              "مخبزة",
+              "المخبز"
+            ],
+            "fa": [
+              "نانوا",
+              "خبازی"
+            ],
+            "tr": [
+              "Fırın",
+              "Pide fırını"
+            ],
+            "de": [
+              "Bäckerhaus",
+              "Backwarenstube"
+            ]
+          }
+        }
+      }
+    },
+    "hairdresser": {
+      "wikidata": [
+        "Q958567"
+      ],
+      "labels": {
+        "en": "USATC S100 Class",
+        "fr": "USATC S100",
+        "de": "USATC-Klasse S 100"
+      },
+      "aliases": {},
+      "safe_aliases": {},
+      "raw_qids": {
+        "Q958567": {
+          "labels": {
+            "en": "USATC S100 Class",
+            "fr": "USATC S100",
+            "de": "USATC-Klasse S 100"
+          },
+          "aliases": {}
+        }
+      }
+    },
+    "supermarket": {
+      "wikidata": [
+        "Q180846"
+      ],
+      "labels": {
+        "en": "supermarket",
+        "ar": "سوبرماركت",
+        "ckb": "سووپەرمارکێت",
+        "fa": "سوپرمارکت",
+        "tr": "süpermarket",
+        "fr": "supermarché",
+        "de": "Supermarkt"
+      },
+      "aliases": {
+        "en": [
+          "SM",
+          "mega mart"
+        ],
+        "ar": [
+          "مغازة",
+          "السوبر ماركت",
+          "السوبرماركت",
+          "فضاء تجاري",
+          "سوق تجاري",
+          "سوق مركزي",
+          "سوبر ماركت"
+        ],
+        "fa": [
+          "سوپر مارکت"
+        ],
+        "fr": [
+          "super-marché",
+          "supermarchés",
+          "grandes surfaces"
+        ],
+        "de": [
+          "Selbstbedienungsladen"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "SM",
+          "mega mart"
+        ],
+        "ar": [
+          "مغازة",
+          "السوبر ماركت",
+          "السوبرماركت",
+          "فضاء تجاري",
+          "سوق تجاري",
+          "سوق مركزي",
+          "سوبر ماركت"
+        ],
+        "fa": [
+          "سوپر مارکت"
+        ],
+        "fr": [
+          "super-marché",
+          "supermarchés",
+          "grandes surfaces"
+        ],
+        "de": [
+          "Selbstbedienungsladen"
+        ]
+      },
+      "raw_qids": {
+        "Q180846": {
+          "labels": {
+            "en": "supermarket",
+            "ar": "سوبرماركت",
+            "ckb": "سووپەرمارکێت",
+            "fa": "سوپرمارکت",
+            "tr": "süpermarket",
+            "fr": "supermarché",
+            "de": "Supermarkt"
+          },
+          "aliases": {
+            "en": [
+              "SM",
+              "mega mart"
+            ],
+            "ar": [
+              "مغازة",
+              "السوبر ماركت",
+              "السوبرماركت",
+              "فضاء تجاري",
+              "سوق تجاري",
+              "سوق مركزي",
+              "سوبر ماركت"
+            ],
+            "fa": [
+              "سوپر مارکت"
+            ],
+            "fr": [
+              "super-marché",
+              "supermarchés",
+              "grandes surfaces"
+            ],
+            "de": [
+              "Selbstbedienungsladen"
+            ]
+          }
+        }
+      }
+    },
+    "bank": {
+      "wikidata": [
+        "Q22687"
+      ],
+      "labels": {
+        "en": "bank",
+        "ar": "مصرف",
+        "ku": "bank",
+        "ckb": "بانک",
+        "fa": "بانک",
+        "tr": "banka",
+        "fr": "banque",
+        "de": "Bank"
+      },
+      "aliases": {
+        "en": [
+          "financial institution"
+        ],
+        "ar": [
+          "البنوك",
+          "بنوك",
+          "برايم",
+          "البنك",
+          "المصارف",
+          "مصارف",
+          "المصرف",
+          "بَنْك",
+          "بنك"
+        ],
+        "ckb": [
+          "بانق"
+        ],
+        "fr": [
+          "Société bancaire",
+          "Banques",
+          "Bancaire",
+          "Établissement bancaire"
+        ],
+        "de": [
+          "Finanzinstitut",
+          "Bankhaus",
+          "Geldhaus",
+          "Geldinstitut"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "financial institution"
+        ],
+        "ar": [
+          "البنوك",
+          "بنوك",
+          "برايم",
+          "البنك",
+          "المصارف",
+          "مصارف",
+          "المصرف",
+          "بَنْك"
+        ],
+        "ckb": [
+          "بانق"
+        ],
+        "fr": [
+          "Société bancaire",
+          "Banques",
+          "Bancaire",
+          "Établissement bancaire"
+        ],
+        "de": [
+          "Finanzinstitut",
+          "Bankhaus",
+          "Geldhaus",
+          "Geldinstitut"
+        ]
+      },
+      "raw_qids": {
+        "Q22687": {
+          "labels": {
+            "en": "bank",
+            "ar": "مصرف",
+            "ku": "bank",
+            "ckb": "بانک",
+            "fa": "بانک",
+            "tr": "banka",
+            "fr": "banque",
+            "de": "Bank"
+          },
+          "aliases": {
+            "en": [
+              "financial institution"
+            ],
+            "ar": [
+              "البنوك",
+              "بنوك",
+              "برايم",
+              "البنك",
+              "المصارف",
+              "مصارف",
+              "المصرف",
+              "بَنْك",
+              "بنك"
+            ],
+            "ckb": [
+              "بانق"
+            ],
+            "fr": [
+              "Société bancaire",
+              "Banques",
+              "Bancaire",
+              "Établissement bancaire"
+            ],
+            "de": [
+              "Finanzinstitut",
+              "Bankhaus",
+              "Geldhaus",
+              "Geldinstitut"
+            ]
+          }
+        }
+      }
+    },
+    "atm": {
+      "wikidata": [
+        "Q81235"
+      ],
+      "labels": {
+        "en": "automated teller machine",
+        "ar": "صراف آلي",
+        "fa": "خودپرداز",
+        "tr": "Bankamatik",
+        "fr": "guichet automatique bancaire",
+        "de": "Geldautomat"
+      },
+      "aliases": {
+        "en": [
+          "ATM",
+          "cash machine",
+          "cashpoint",
+          "cashline",
+          "minibank",
+          "bankomat",
+          "Bancomat",
+          "automated banking machine"
+        ],
+        "ar": [
+          "آلة الصراف الآلي",
+          "آلة صراف آلي",
+          "الصراف الآلي",
+          "آله صراف آلي"
+        ],
+        "fa": [
+          "آنی‌بانک",
+          "عابر بانک",
+          "آنی بانک",
+          "انی بانک",
+          "عابربانک",
+          "انی‌بانک",
+          "خود پرداز"
+        ],
+        "tr": [
+          "Para çekme makinesi",
+          "Otomatik vezne makinesi",
+          "BTM"
+        ],
+        "fr": [
+          "Distributeur automatique de billets",
+          "Postomat",
+          "Bancomat",
+          "Dabiste",
+          "Mur qui crache",
+          "Guichet automatique",
+          "Automate bancaire",
+          "Distributeur de billets",
+          "Automated banking machine",
+          "Guichets automatiques",
+          "Automated Teller Machines"
+        ],
+        "de": [
+          "Bankautomat",
+          "Geldausgabeautomat",
+          "Cash machine",
+          "Bancomat",
+          "Automated Teller Machine",
+          "Automatic teller machine",
+          "Bankomat"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "ATM",
+          "cash machine",
+          "cashpoint",
+          "cashline",
+          "minibank",
+          "bankomat",
+          "Bancomat",
+          "automated banking machine"
+        ],
+        "ar": [
+          "آلة الصراف الآلي",
+          "آلة صراف آلي",
+          "الصراف الآلي",
+          "آله صراف آلي"
+        ],
+        "fa": [
+          "آنی‌بانک",
+          "عابر بانک",
+          "آنی بانک",
+          "عابربانک",
+          "خود پرداز"
+        ],
+        "tr": [
+          "Para çekme makinesi",
+          "Otomatik vezne makinesi",
+          "BTM"
+        ],
+        "fr": [
+          "Distributeur automatique de billets",
+          "Postomat",
+          "Bancomat",
+          "Dabiste",
+          "Mur qui crache",
+          "Guichet automatique",
+          "Automate bancaire",
+          "Distributeur de billets",
+          "Automated banking machine",
+          "Guichets automatiques",
+          "Automated Teller Machines"
+        ],
+        "de": [
+          "Bankautomat",
+          "Geldausgabeautomat",
+          "Cash machine",
+          "Bancomat",
+          "Automated Teller Machine",
+          "Automatic teller machine",
+          "Bankomat"
+        ]
+      },
+      "raw_qids": {
+        "Q81235": {
+          "labels": {
+            "en": "automated teller machine",
+            "ar": "صراف آلي",
+            "fa": "خودپرداز",
+            "tr": "Bankamatik",
+            "fr": "guichet automatique bancaire",
+            "de": "Geldautomat"
+          },
+          "aliases": {
+            "en": [
+              "ATM",
+              "cash machine",
+              "cashpoint",
+              "cashline",
+              "minibank",
+              "bankomat",
+              "Bancomat",
+              "automated banking machine"
+            ],
+            "ar": [
+              "آلة الصراف الآلي",
+              "آلة صراف آلي",
+              "الصراف الآلي",
+              "آله صراف آلي"
+            ],
+            "fa": [
+              "آنی‌بانک",
+              "عابر بانک",
+              "آنی بانک",
+              "انی بانک",
+              "عابربانک",
+              "انی‌بانک",
+              "خود پرداز"
+            ],
+            "tr": [
+              "Para çekme makinesi",
+              "Otomatik vezne makinesi",
+              "BTM"
+            ],
+            "fr": [
+              "Distributeur automatique de billets",
+              "Postomat",
+              "Bancomat",
+              "Dabiste",
+              "Mur qui crache",
+              "Guichet automatique",
+              "Automate bancaire",
+              "Distributeur de billets",
+              "Automated banking machine",
+              "Guichets automatiques",
+              "Automated Teller Machines"
+            ],
+            "de": [
+              "Bankautomat",
+              "Geldausgabeautomat",
+              "Cash machine",
+              "Bancomat",
+              "Automated Teller Machine",
+              "Automatic teller machine",
+              "Bankomat"
+            ]
+          }
+        }
+      }
+    },
+    "parking": {
+      "wikidata": [
+        "Q6501349"
+      ],
+      "labels": {
+        "en": "parking area",
+        "ar": "موقف سيارات",
+        "ku": "Otopark",
+        "ckb": "پارکی ئۆتۆمۆبیل",
+        "fa": "پارکینگ",
+        "tr": "otopark yapısı",
+        "fr": "parc de stationnement",
+        "de": "Parkplatz"
+      },
+      "aliases": {
+        "en": [
+          "car lot",
+          "parking facility",
+          "lot",
+          "car park",
+          "parking",
+          "parking lot",
+          "carpark"
+        ],
+        "tr": [
+          "park yeri"
+        ],
+        "fr": [
+          "parking"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "car lot",
+          "parking facility",
+          "lot",
+          "car park",
+          "parking",
+          "parking lot",
+          "carpark"
+        ],
+        "tr": [
+          "park yeri"
+        ],
+        "fr": [
+          "parking"
+        ]
+      },
+      "raw_qids": {
+        "Q6501349": {
+          "labels": {
+            "en": "parking area",
+            "ar": "موقف سيارات",
+            "ku": "Otopark",
+            "ckb": "پارکی ئۆتۆمۆبیل",
+            "fa": "پارکینگ",
+            "tr": "otopark yapısı",
+            "fr": "parc de stationnement",
+            "de": "Parkplatz"
+          },
+          "aliases": {
+            "en": [
+              "car lot",
+              "parking facility",
+              "lot",
+              "car park",
+              "parking",
+              "parking lot",
+              "carpark"
+            ],
+            "tr": [
+              "park yeri"
+            ],
+            "fr": [
+              "parking"
+            ]
+          }
+        }
+      }
+    },
+    "school": {
+      "wikidata": [
+        "Q3914"
+      ],
+      "labels": {
+        "en": "school",
+        "ar": "مدرسة",
+        "ku": "dibistan",
+        "ckb": "قوتابخانە",
+        "fa": "مدرسه",
+        "tr": "okul",
+        "fr": "école",
+        "de": "Schule"
+      },
+      "aliases": {
+        "en": [
+          "schools",
+          "School"
+        ],
+        "ar": [
+          "مدارس",
+          "المدرسة"
+        ],
+        "tr": [
+          "mektep"
+        ],
+        "fr": [
+          "établissement scolaire"
+        ],
+        "de": [
+          "Bildungsanstalt",
+          "Lernanstalt",
+          "Schulen",
+          "Lehrplanvollzugsanstalt",
+          "Unterrichtvollzugsanstalt",
+          "Bildungsanstalten",
+          "Lernanstalten",
+          "Lehrplanvollzugsanstalten",
+          "Unterrichtvollzugsanstalten"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "schools",
+          "School"
+        ],
+        "ar": [
+          "مدارس",
+          "المدرسة"
+        ],
+        "tr": [
+          "mektep"
+        ],
+        "fr": [
+          "établissement scolaire"
+        ],
+        "de": [
+          "Bildungsanstalt",
+          "Lernanstalt",
+          "Schulen",
+          "Lehrplanvollzugsanstalt",
+          "Unterrichtvollzugsanstalt",
+          "Bildungsanstalten",
+          "Lernanstalten",
+          "Lehrplanvollzugsanstalten",
+          "Unterrichtvollzugsanstalten"
+        ]
+      },
+      "raw_qids": {
+        "Q3914": {
+          "labels": {
+            "en": "school",
+            "ar": "مدرسة",
+            "ku": "dibistan",
+            "ckb": "قوتابخانە",
+            "fa": "مدرسه",
+            "tr": "okul",
+            "fr": "école",
+            "de": "Schule"
+          },
+          "aliases": {
+            "en": [
+              "schools",
+              "School"
+            ],
+            "ar": [
+              "مدارس",
+              "المدرسة"
+            ],
+            "tr": [
+              "mektep"
+            ],
+            "fr": [
+              "établissement scolaire"
+            ],
+            "de": [
+              "Bildungsanstalt",
+              "Lernanstalt",
+              "Schulen",
+              "Lehrplanvollzugsanstalt",
+              "Unterrichtvollzugsanstalt",
+              "Bildungsanstalten",
+              "Lernanstalten",
+              "Lehrplanvollzugsanstalten",
+              "Unterrichtvollzugsanstalten"
+            ]
+          }
+        }
+      }
+    },
+    "university": {
+      "wikidata": [
+        "Q3918"
+      ],
+      "labels": {
+        "en": "university",
+        "ar": "جامعة",
+        "ku": "zanîngeh",
+        "ckb": "زانکۆ",
+        "fa": "دانشگاه",
+        "tr": "üniversite",
+        "fr": "université",
+        "de": "Universität"
+      },
+      "aliases": {
+        "en": [
+          "uni",
+          "universities",
+          "varsity"
+        ],
+        "ku": [
+          "zanko",
+          "unîversîte"
+        ],
+        "ckb": [
+          "زانستگە",
+          "زانستگا",
+          "زانینگە"
+        ],
+        "fa": [
+          "پوهنتون"
+        ],
+        "tr": [
+          "darülfünun"
+        ],
+        "fr": [
+          "centre universitaire",
+          "uni"
+        ],
+        "de": [
+          "Uni",
+          "Universitäten"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "uni",
+          "universities",
+          "varsity"
+        ],
+        "ku": [
+          "zanko",
+          "unîversîte"
+        ],
+        "ckb": [
+          "زانستگە",
+          "زانستگا",
+          "زانینگە"
+        ],
+        "fa": [
+          "پوهنتون"
+        ],
+        "tr": [
+          "darülfünun"
+        ],
+        "fr": [
+          "centre universitaire",
+          "uni"
+        ],
+        "de": [
+          "Uni",
+          "Universitäten"
+        ]
+      },
+      "raw_qids": {
+        "Q3918": {
+          "labels": {
+            "en": "university",
+            "ar": "جامعة",
+            "ku": "zanîngeh",
+            "ckb": "زانکۆ",
+            "fa": "دانشگاه",
+            "tr": "üniversite",
+            "fr": "université",
+            "de": "Universität"
+          },
+          "aliases": {
+            "en": [
+              "uni",
+              "universities",
+              "varsity"
+            ],
+            "ku": [
+              "zanko",
+              "unîversîte"
+            ],
+            "ckb": [
+              "زانستگە",
+              "زانستگا",
+              "زانینگە"
+            ],
+            "fa": [
+              "پوهنتون"
+            ],
+            "tr": [
+              "darülfünun"
+            ],
+            "fr": [
+              "centre universitaire",
+              "uni"
+            ],
+            "de": [
+              "Uni",
+              "Universitäten"
+            ]
+          }
+        }
+      }
+    },
+    "police": {
+      "wikidata": [
+        "Q861951"
+      ],
+      "labels": {
+        "en": "police station",
+        "ar": "مركز شرطة",
+        "fa": "ایستگاه پلیس",
+        "tr": "polis karakolu",
+        "fr": "commissariat de police",
+        "de": "Polizeidienststelle"
+      },
+      "aliases": {
+        "ar": [
+          "مركز الشرطة",
+          "مخفر"
+        ],
+        "tr": [
+          "Polis merkezi"
+        ],
+        "fr": [
+          "commico",
+          "ciat",
+          "comico",
+          "poste de police",
+          "commissariat"
+        ],
+        "de": [
+          "Polizeiinspektion",
+          "Polizeirevier",
+          "Polizeiwache",
+          "Polizeiposten",
+          "Polizeistation"
+        ]
+      },
+      "safe_aliases": {
+        "ar": [
+          "مركز الشرطة",
+          "مخفر"
+        ],
+        "tr": [
+          "Polis merkezi"
+        ],
+        "fr": [
+          "commico",
+          "ciat",
+          "comico",
+          "poste de police",
+          "commissariat"
+        ],
+        "de": [
+          "Polizeiinspektion",
+          "Polizeirevier",
+          "Polizeiwache",
+          "Polizeiposten",
+          "Polizeistation"
+        ]
+      },
+      "raw_qids": {
+        "Q861951": {
+          "labels": {
+            "en": "police station",
+            "ar": "مركز شرطة",
+            "fa": "ایستگاه پلیس",
+            "tr": "polis karakolu",
+            "fr": "commissariat de police",
+            "de": "Polizeidienststelle"
+          },
+          "aliases": {
+            "ar": [
+              "مركز الشرطة",
+              "مخفر"
+            ],
+            "tr": [
+              "Polis merkezi"
+            ],
+            "fr": [
+              "commico",
+              "ciat",
+              "comico",
+              "poste de police",
+              "commissariat"
+            ],
+            "de": [
+              "Polizeiinspektion",
+              "Polizeirevier",
+              "Polizeiwache",
+              "Polizeiposten",
+              "Polizeistation"
+            ]
+          }
+        }
+      }
+    },
+    "fire_station": {
+      "wikidata": [
+        "Q1195942"
+      ],
+      "labels": {
+        "en": "fire station",
+        "ar": "مركز إطفاء",
+        "fa": "ایستگاه آتشنشانی",
+        "tr": "İtfaiye istasyonu",
+        "fr": "caserne de pompiers",
+        "de": "Feuerwehrhaus"
+      },
+      "aliases": {
+        "en": [
+          "fire house",
+          "fire hall",
+          "firemen's hall",
+          "barracks of the firemen",
+          "firehouse"
+        ],
+        "ar": [
+          "محطة إطفاء الحرائق",
+          "محطة إطفاء",
+          "محطة الإطفاء",
+          "مركز الإطفاء",
+          "مركز إطفاء الحرائق"
+        ],
+        "fr": [
+          "centre de secours et d'incendie",
+          "CIS",
+          "caserne d'incendie",
+          "poste de pompiers",
+          "poste d'incendie"
+        ],
+        "de": [
+          "Feuerwehrmagazin",
+          "Feuerwache",
+          "Rüsthaus",
+          "Feuerwehrdepot",
+          "Feuerwehrhalle",
+          "Feuerwehrgerätehaus",
+          "Spritzenhaus",
+          "Feuerwehrgebäude"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "fire house",
+          "fire hall",
+          "firemen's hall",
+          "barracks of the firemen",
+          "firehouse"
+        ],
+        "ar": [
+          "محطة إطفاء الحرائق",
+          "محطة إطفاء",
+          "محطة الإطفاء",
+          "مركز الإطفاء",
+          "مركز إطفاء الحرائق"
+        ],
+        "fr": [
+          "centre de secours et d'incendie",
+          "CIS",
+          "caserne d'incendie",
+          "poste de pompiers",
+          "poste d'incendie"
+        ],
+        "de": [
+          "Feuerwehrmagazin",
+          "Feuerwache",
+          "Rüsthaus",
+          "Feuerwehrdepot",
+          "Feuerwehrhalle",
+          "Feuerwehrgerätehaus",
+          "Spritzenhaus",
+          "Feuerwehrgebäude"
+        ]
+      },
+      "raw_qids": {
+        "Q1195942": {
+          "labels": {
+            "en": "fire station",
+            "ar": "مركز إطفاء",
+            "fa": "ایستگاه آتشنشانی",
+            "tr": "İtfaiye istasyonu",
+            "fr": "caserne de pompiers",
+            "de": "Feuerwehrhaus"
+          },
+          "aliases": {
+            "en": [
+              "fire house",
+              "fire hall",
+              "firemen's hall",
+              "barracks of the firemen",
+              "firehouse"
+            ],
+            "ar": [
+              "محطة إطفاء الحرائق",
+              "محطة إطفاء",
+              "محطة الإطفاء",
+              "مركز الإطفاء",
+              "مركز إطفاء الحرائق"
+            ],
+            "fr": [
+              "centre de secours et d'incendie",
+              "CIS",
+              "caserne d'incendie",
+              "poste de pompiers",
+              "poste d'incendie"
+            ],
+            "de": [
+              "Feuerwehrmagazin",
+              "Feuerwache",
+              "Rüsthaus",
+              "Feuerwehrdepot",
+              "Feuerwehrhalle",
+              "Feuerwehrgerätehaus",
+              "Spritzenhaus",
+              "Feuerwehrgebäude"
+            ]
+          }
+        }
+      }
+    },
+    "mosque": {
+      "wikidata": [
+        "Q32815"
+      ],
+      "labels": {
+        "en": "mosque",
+        "ar": "مسجد",
+        "ku": "mizgeft",
+        "ckb": "مزگەوت",
+        "fa": "مسجد",
+        "tr": "cami",
+        "fr": "mosquée",
+        "de": "Moschee"
+      },
+      "aliases": {
+        "en": [
+          "Mosque",
+          "masjid",
+          "Masjid",
+          "Jamia"
+        ],
+        "ar": [
+          "مساجد",
+          "المساجد",
+          "جامع",
+          "المسجد",
+          "🕌"
+        ],
+        "fa": [
+          "مساجد"
+        ],
+        "tr": [
+          "câmî",
+          "camii"
+        ],
+        "fr": [
+          "masjid",
+          "mosquee",
+          "grande mosquée"
+        ],
+        "de": [
+          "Dzamija",
+          "Džamija",
+          "Masjid"
+        ]
+      },
+      "safe_aliases": {
+        "en": [
+          "Mosque",
+          "masjid",
+          "Jamia"
+        ],
+        "ar": [
+          "مساجد",
+          "المساجد",
+          "جامع",
+          "المسجد",
+          "🕌"
+        ],
+        "fa": [
+          "مساجد"
+        ],
+        "tr": [
+          "câmî",
+          "camii"
+        ],
+        "fr": [
+          "masjid",
+          "mosquee",
+          "grande mosquée"
+        ],
+        "de": [
+          "Dzamija",
+          "Džamija",
+          "Masjid"
+        ]
+      },
+      "raw_qids": {
+        "Q32815": {
+          "labels": {
+            "en": "mosque",
+            "ar": "مسجد",
+            "ku": "mizgeft",
+            "ckb": "مزگەوت",
+            "fa": "مسجد",
+            "tr": "cami",
+            "fr": "mosquée",
+            "de": "Moschee"
+          },
+          "aliases": {
+            "en": [
+              "Mosque",
+              "masjid",
+              "Masjid",
+              "Jamia"
+            ],
+            "ar": [
+              "مساجد",
+              "المساجد",
+              "جامع",
+              "المسجد",
+              "🕌"
+            ],
+            "fa": [
+              "مساجد"
+            ],
+            "tr": [
+              "câmî",
+              "camii"
+            ],
+            "fr": [
+              "masjid",
+              "mosquee",
+              "grande mosquée"
+            ],
+            "de": [
+              "Dzamija",
+              "Džamija",
+              "Masjid"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "warnings": []
+}

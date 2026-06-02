@@ -69,6 +69,18 @@ test('normalizeText: normalizes Persian characters', () => {
   assert.ok(result.applied_rules.includes('normalize_persian_chars'));
 });
 
+test('normalizeText: normalizes Kurdish kaf and yaa variants', () => {
+  const result = normalizeText('ڪوردێ', 'ku');
+  assert.equal(result.normalized, 'كوردي');
+  assert.ok(result.applied_rules.includes('normalize_kurdish_kaf_yaa'));
+});
+
+test('normalizeText: handles common Iraqi spellings', () => {
+  const result = normalizeText('كراده بصره جامعه', 'ar');
+  assert.equal(result.normalized, 'كرادة بصرة جامعة');
+  assert.ok(result.applied_rules.includes('normalize_iraqi_spellings'));
+});
+
 test('normalizeText: lowercases Latin text', () => {
   const result = normalizeText('Baghdad IRAQ', 'en');
   assert.equal(result.normalized, 'baghdad iraq');

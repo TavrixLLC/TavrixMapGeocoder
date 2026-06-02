@@ -1,9 +1,12 @@
 'use strict';
 
+const CategoryTaxonomy = require('./category-taxonomy');
+
 class Transform {
   constructor(config, logger) {
     this.config = config;
     this.log = logger;
+    this.categoryTaxonomy = new CategoryTaxonomy(config);
   }
 
   toDomainDoc(source, row) {
@@ -24,9 +27,13 @@ class Transform {
     }
 
     const layer = resolveLayer(source, row);
-    const categories = collectValues(row, source.category_fields || []);
+    const sourceTags = mapFields(row, source.category_fields || []);
+    const categoryInfo = this.categoryTaxonomy.enrich(sourceTags);
+    const rawCategories = collectValues(row, source.category_fields || []);
+    const categories = unique([...categoryInfo.categoryIds, ...rawCategories]);
     const address = mapFields(row, source.address_fields || {});
     const parent = mapParentFields(row, source.hierarchy_fields || {});
+    applySelfHierarchy(parent, layer, names.default);
     const addendum = mapAddendum(row, source.addendum_fields || []);
     const popularity = parsePopularity(value(row, source.popularity_field));
 
@@ -41,10 +48,16 @@ class Transform {
       lat,
       lon,
       categories,
+      categoryIds: categoryInfo.categoryIds,
+      categoryAliases: categoryInfo.categoryAliases,
+      categoryTerms: categoryInfo.categoryTerms,
+      intentGroups: categoryInfo.intentGroups,
+      sourceTags,
       address,
       parent,
       addendum,
       popularity,
+      importance: categoryInfo.importance,
       // Routable point/entrances: not yet available from PostGIS queries
       // TODO: Add entrance extraction SQL and nearest-road enrichment
       routable_point: null,
@@ -112,9 +125,17 @@ function collectValues(row, fields) {
   return out;
 }
 
-function mapFields(row, mapping) {
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function mapFields(row, fieldsOrMapping) {
   const out = {};
-  for (const [targetField, sourceField] of Object.entries(mapping)) {
+  const entries = Array.isArray(fieldsOrMapping)
+    ? fieldsOrMapping.map(field => [field, field])
+    : Object.entries(fieldsOrMapping);
+
+  for (const [targetField, sourceField] of entries) {
     const raw = value(row, sourceField);
     if (raw == null) continue;
 
@@ -134,6 +155,21 @@ function mapParentFields(row, mapping) {
     if (clean) out[targetField] = [clean];
   }
   return out;
+}
+
+function applySelfHierarchy(parent, layer, name) {
+  const field = {
+    country: 'country',
+    region: 'region',
+    county: 'county',
+    localadmin: 'localadmin',
+    locality: 'locality',
+    neighbourhood: 'neighbourhood'
+  }[layer];
+
+  if (field && name && !parent[field]) {
+    parent[field] = [name];
+  }
 }
 
 function mapAddendum(row, fields) {

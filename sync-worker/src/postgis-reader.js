@@ -25,6 +25,7 @@ class PostgisReader {
   }
 
   async ping() {
+    await this.assertReadOnlySession(this.pool);
     await this.pool.query('SELECT 1');
   }
 
@@ -41,6 +42,7 @@ class PostgisReader {
 
     try {
       await client.query('BEGIN READ ONLY');
+      await this.assertReadOnlySession(client);
       const sql = this.buildSql(source);
       const stream = client.query(new QueryStream(sql, [], { batchSize }));
 
@@ -65,6 +67,26 @@ class PostgisReader {
     }
   }
 
+  async queryReadOnly(sql, params = []) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN READ ONLY');
+      await this.assertReadOnlySession(client);
+      const response = await client.query(sql, params);
+      await client.query('COMMIT');
+      return response.rows || [];
+    } catch (err) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_) {
+        // Preserve original error.
+      }
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
   buildSql(source) {
     const geom = quoteIdentifier(source.geometry_field);
 
@@ -78,6 +100,16 @@ class PostgisReader {
       ) AS q
       WHERE q.${geom} IS NOT NULL
     `;
+  }
+
+  async assertReadOnlySession(client) {
+    const response = await client.query('SHOW transaction_read_only');
+    const value = response && response.rows && response.rows[0]
+      ? response.rows[0].transaction_read_only
+      : null;
+    if (String(value).toLowerCase() !== 'on') {
+      throw new Error('PostGIS connection is not read-only');
+    }
   }
 }
 

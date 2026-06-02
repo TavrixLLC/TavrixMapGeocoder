@@ -6,19 +6,9 @@ class Enrichment {
   }
 
   enrich(domainDoc) {
-    const country = this.config.worker.default_country;
-    const countryA = this.config.worker.default_country_a;
-
-    if (country && !domainDoc.parent.country) {
-      domainDoc.parent.country = [country];
-    }
-
-    if (countryA && !domainDoc.parent.country_a) {
-      domainDoc.parent.country_a = [countryA];
-    }
-
     domainDoc.categories = normalizeCategories(domainDoc.categories);
     domainDoc.address = normalizeAddress(domainDoc.address);
+    domainDoc.parent = normalizeParent(domainDoc.parent);
 
     return domainDoc;
   }
@@ -47,6 +37,16 @@ function normalizeAddress(address) {
     if (clean) {
       out[key] = clean;
     }
+  }
+  return out;
+}
+
+function normalizeParent(parent) {
+  const out = {};
+  for (const [key, value] of Object.entries(parent || {})) {
+    const values = Array.isArray(value) ? value : [value];
+    const clean = values.map(item => String(item || '').trim()).filter(Boolean);
+    if (clean.length > 0) out[key] = [...new Set(clean)];
   }
   return out;
 }
